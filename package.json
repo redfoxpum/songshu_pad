@@ -1,0 +1,29 @@
+{
+  "name": "coder-pad-alt",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client",
+    "server-app",
+    "desktop-agent"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"server,client\" -c \"blue,green\" \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "dev:server-app": "npm run dev --workspace=server-app",
+    "dev:agent": "npm run dev --workspace=desktop-agent",
+    "build": "npm run build --workspace=client && npm run build --workspace=server",
+    "build:all": "npm run build --workspace=client && npm run build --workspace=server && npm run build --workspace=server-app && npm run build --workspace=desktop-agent",
+    "package:agent": "npm run package:mac --workspace=desktop-agent",
+    "start": "npm run start --workspace=server",
+    "start:server-app": "npm run start --workspace=server-app",
+    "start:agent": "npm run start --workspace=desktop-agent",
+    "test": "npm test --workspace=server",
+    "test:sync": "npm run test:sync --workspace=server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

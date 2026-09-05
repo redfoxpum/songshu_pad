@@ -1,0 +1,419 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { AgentStatus, ScreenPermissionResult } from '../types/ipc';
+import { HeaderBar } from './components/HeaderBar';
+import { PermissionGate } from './components/PermissionGate';
+import { ConnectionForm } from './components/ConnectionForm';
+import { FloatingHUD } from './components/FloatingHUD';
+import { PadViewer } from './components/PadViewer';
+import { MoveDiagonal, UnfoldVertical } from 'lucide-react';
+
+const STORAGE_OPACITY = 'squirrel_agent_opacity';
+const STORAGE_SIZE = 'squirrel_agent_window_size';
+
+interface WindowDimension {
+  width: number;
+  height: number;
+}
+
+export const App: React.FC = () => {
+  const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [opacity, setOpacity] = useState<number>(0.35);
+  const [isOnDemandActive, setIsOnDemandActive] = useState<boolean>(false);
+  const [language, setLanguage] = useState<string>('python');
+  const [code, setCode] = useState<string>('');
+  const [fontSize, setFontSize] = useState<number>(13);
+  const [wrapLines, setWrapLines] = useState<boolean>(true);
+  const [copied, setCopied] = useState<boolean>(false);
+  const initialCaptureDoneRef = useRef<boolean>(false);
+
+  // Saved window size state (defaults to 640x520)
+  const [windowDimension, setWindowDimension] = useState<WindowDimension>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_SIZE);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.width && parsed.height) {
+          return {
+            width: Math.max(360, Math.min(2560, parsed.width)),
+            height: Math.max(200, Math.min(1600, parsed.height)),
+          };
+        }
+      }
+    } catch (e) {}
+    return { width: 640, height: 520 };
+  });
+
+  const isResizingRef = useRef<boolean>(false);
+  const dimensionRef = useRef<WindowDimension>(windowDimension);
+  dimensionRef.current = windowDimension;
+
+  const [status, setStatus] = useState<AgentStatus>({
+    connected: false,
+    connecting: false,
+    serverUrl: '',
+    roomId: '',
+    clickThrough: false,
+    lastCaptureTime: null,
+    nextScheduledCaptureIn: 30,
+    totalCaptures: 0,
+    lastError: null,
+    isCapturing: false,
+  });
+
+  const getSavedServerUrl = (): string => {
+    try {
+      const saved = localStorage.getItem('squirrel_agent_server_url');
+      if (saved && saved.trim()) return saved.trim();
+    } catch (e) {
+      // ignore
+    }
+    return 'http://localhost:3000';
+  };
+
+  const triggerInitialCapture = useCallback(async () => {
+    if (initialCaptureDoneRef.current) return;
+    initialCaptureDoneRef.current = true;
+
+    if (window.electronAPI) {
+      try {
+        const serverUrl = getSavedServerUrl();
+        console.log('[Renderer] Immediate screen capture triggered on startup / authorization to:', serverUrl);
+        const res = await window.electronAPI.captureAndUploadInitial(serverUrl);
+        console.log('[Renderer] Immediate screen capture completed:', res);
+      } catch (err) {
+        console.error('[Renderer] Immediate screen capture failed:', err);
+      }
+    }
+  }, []);
+
+  // Check screen recording permissions on startup
+  const checkPermissions = useCallback(async () => {
+    if (window.electronAPI) {
+      try {
+        const res: ScreenPermissionResult = await window.electronAPI.checkScreenPermission();
+        setPermissionGranted(res.granted);
+        if (res.granted) {
+          triggerInitialCapture();
+        }
+        return res.granted;
+      } catch (err) {
+        console.error('Error checking permission:', err);
+        return false;
+      }
+    }
+    return true;
+  }, [triggerInitialCapture]);
+
+  const handlePermissionGranted = useCallback(() => {
+    setPermissionGranted(true);
+    triggerInitialCapture();
+  }, [triggerInitialCapture]);
+
+  useEffect(() => {
+    checkPermissions();
+
+    // Load saved opacity
+    try {
+      const savedOp = localStorage.getItem(STORAGE_OPACITY);
+      if (savedOp) {
+        const num = parseFloat(savedOp);
+        if (!isNaN(num)) {
+          setOpacity(num);
+        }
+      }
+    } catch (e) {}
+
+    // Subscribe to IPC events from main process
+    if (window.electronAPI) {
+      const unsubStatus = window.electronAPI.onAgentStatusUpdate((newStatus) => {
+        setStatus(newStatus);
+      });
+
+      const unsubClickThrough = window.electronAPI.onClickThroughToggled((enabled) => {
+        setStatus((prev) => ({ ...prev, clickThrough: enabled }));
+      });
+
+      const unsubOnDemand = window.electronAPI.onOnDemandTriggered(() => {
+        setIsOnDemandActive(true);
+        setTimeout(() => setIsOnDemandActive(false), 3500);
+      });
+
+      const unsubCaptureDone = window.electronAPI.onCaptureCompleted((result) => {
+        console.log('[Renderer] Capture completed:', result);
+      });
+
+      return () => {
+        unsubStatus();
+        unsubClickThrough();
+        unsubOnDemand();
+        unsubCaptureDone();
+      };
+    }
+  }, [checkPermissions]);
+
+  const isSessionActive = status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId));
+
+  // Adjust window size only on major mode changes (collapse/expand/connection), preserving user custom size
+  useEffect(() => {
+    if (!window.electronAPI) return;
+
+    if (isCollapsed) {
+      window.electronAPI.setWindowSize(320, 42);
+    } else if (!permissionGranted) {
+      window.electronAPI.setWindowSize(400, 380);
+    } else if (!isSessionActive) {
+      window.electronAPI.setWindowSize(400, 370);
+    } else {
+      // Use user's custom width and height
+      window.electronAPI.setWindowSize(dimensionRef.current.width, dimensionRef.current.height);
+    }
+  }, [isCollapsed, permissionGranted, isSessionActive]);
+
+  const handleOpacityChange = (newOpacity: number) => {
+    setOpacity(newOpacity);
+    try {
+      localStorage.setItem(STORAGE_OPACITY, String(newOpacity));
+    } catch (e) {}
+  };
+
+  const handleConnect = async (serverUrl: string, roomId: string) => {
+    if (window.electronAPI) {
+      setStatus((prev) => ({ ...prev, connecting: true, lastError: null }));
+      const res = await window.electronAPI.connectAgent({ serverUrl, roomId });
+      if (!res.success) {
+        setStatus((prev) => ({ ...prev, connecting: false, lastError: res.error || '连接失败' }));
+      }
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (window.electronAPI) {
+      await window.electronAPI.disconnectAgent();
+    }
+    setStatus((prev) => ({ ...prev, connected: false, connecting: false }));
+  };
+
+  const handleToggleClickThrough = async () => {
+    if (window.electronAPI) {
+      const newState = await window.electronAPI.toggleClickThrough();
+      setStatus((prev) => ({ ...prev, clickThrough: newState }));
+    }
+  };
+
+  const handleFontSizeChange = (delta: number) => {
+    setFontSize((prev) => Math.max(10, Math.min(22, prev + delta)));
+  };
+
+  const handleCopyCode = () => {
+    if (code) {
+      navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Quick Height presets
+  const handleQuickHeight = (h: number) => {
+    const updated = { width: dimensionRef.current.width, height: h };
+    setWindowDimension(updated);
+    window.electronAPI?.setWindowSize(updated.width, updated.height);
+    try {
+      localStorage.setItem(STORAGE_SIZE, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  // Interactive Drag-to-Resize Handlers
+  const handleResizeStart = (
+    e: React.MouseEvent,
+    direction: 'corner' | 'bottom' | 'right'
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isResizingRef.current = true;
+
+    const startX = e.screenX;
+    const startY = e.screenY;
+    const startW = dimensionRef.current.width;
+    const startH = dimensionRef.current.height;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const deltaX = moveEvent.screenX - startX;
+      const deltaY = moveEvent.screenY - startY;
+
+      let newWidth = startW;
+      let newHeight = startH;
+
+      if (direction === 'corner' || direction === 'right') {
+        newWidth = Math.max(360, Math.min(2560, Math.round(startW + deltaX)));
+      }
+      if (direction === 'corner' || direction === 'bottom') {
+        newHeight = Math.max(200, Math.min(1600, Math.round(startH + deltaY)));
+      }
+
+      const updated = { width: newWidth, height: newHeight };
+      setWindowDimension(updated);
+      window.electronAPI?.setWindowSize(newWidth, newHeight);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      try {
+        localStorage.setItem(STORAGE_SIZE, JSON.stringify(dimensionRef.current));
+      } catch (e) {}
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col justify-start overflow-hidden rounded-2xl relative select-none">
+      {/* Subtle Flash Overlay during server on-demand capture */}
+      {isOnDemandActive && (
+        <div className="camera-flash-overlay rounded-2xl z-50 pointer-events-none" />
+      )}
+
+      {isCollapsed ? (
+        <FloatingHUD
+          status={status}
+          isCollapsed={true}
+          onToggleCollapse={() => setIsCollapsed(false)}
+        />
+      ) : (
+        <div
+          className="liquid-glass w-full h-full flex flex-col rounded-2xl overflow-hidden shadow-glass border border-white/15 relative transition-colors duration-150"
+          style={{
+            backgroundColor: `rgba(15, 23, 42, ${Math.max(0.05, opacity)})`,
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+          }}
+        >
+          {/* Top Floating Horizontal Control Bar (100% Solid & Crisp) */}
+          <HeaderBar
+            isCollapsed={false}
+            onToggleCollapse={() => setIsCollapsed(true)}
+            opacity={opacity}
+            onOpacityChange={handleOpacityChange}
+            isConnected={status.connected}
+            isReconnecting={status.reconnecting}
+            reconnectAttempt={status.reconnectAttempt}
+            roomId={status.roomId}
+            language={language}
+            clickThrough={status.clickThrough}
+            onToggleClickThrough={handleToggleClickThrough}
+            fontSize={fontSize}
+            onFontSizeChange={handleFontSizeChange}
+            wrapLines={wrapLines}
+            onToggleWrapLines={() => setWrapLines((prev) => !prev)}
+            onCopyCode={handleCopyCode}
+            copied={copied}
+            onDisconnect={handleDisconnect}
+          />
+
+          {/* Middle Main Content Area */}
+          <div className="flex-1 overflow-hidden flex flex-col relative bg-transparent">
+            {!permissionGranted ? (
+              <div className="flex-1 overflow-y-auto bg-[#0f172a]">
+                <PermissionGate onPermissionGranted={handlePermissionGranted} />
+              </div>
+            ) : !isSessionActive ? (
+              <div className="flex-1 overflow-y-auto bg-[#0f172a]">
+                <ConnectionForm
+                  onConnect={handleConnect}
+                  isConnecting={status.connecting}
+                  error={status.lastError}
+                />
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col overflow-hidden relative bg-transparent">
+                <PadViewer
+                  serverUrl={status.serverUrl || getSavedServerUrl()}
+                  roomId={status.roomId}
+                  fontSize={fontSize}
+                  wrapLines={wrapLines}
+                  opacity={opacity}
+                  onLanguageChange={setLanguage}
+                  onCodeChange={setCode}
+                />
+
+                {/* Bottom Resize & Quick Height Toolbar (100% Solid & Crisp) */}
+                <div
+                  className="px-3 py-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300 select-none app-no-drag z-20 shadow-md transition-colors duration-150"
+                  style={{
+                    backgroundColor: `rgba(15, 23, 42, ${Math.max(0.85, opacity)})`,
+                  }}
+                >
+                  {/* Left: Quick Height Presets */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 text-slate-400 font-medium">
+                      <UnfoldVertical className="w-3 h-3 text-slate-300" />
+                      <span>高度预设:</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { label: '紧凑', height: 380 },
+                        { label: '标准', height: 520 },
+                        { label: '加长', height: 720 },
+                        { label: '全高', height: 920 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.height}
+                          onClick={() => handleQuickHeight(preset.height)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono transition active:scale-95 border ${
+                            Math.abs(windowDimension.height - preset.height) < 40
+                              ? 'bg-blue-600/40 text-blue-200 border-blue-400/50 font-semibold'
+                              : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Right: Drag to resize hint and corner grip */}
+                  <div
+                    onMouseDown={(e) => handleResizeStart(e, 'corner')}
+                    title="按住拖拽任意调整窗口宽度与高度"
+                    className="flex items-center gap-1 text-slate-300 hover:text-blue-300 cursor-nwse-resize px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition border border-slate-700 hover:border-blue-500/40 active:scale-95"
+                  >
+                    <span className="text-[9px] font-mono">{windowDimension.width}×{windowDimension.height}</span>
+                    <MoveDiagonal className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Invisible Edge/Corner Resize Drag Bars (for smooth mouse edge dragging) */}
+          {isSessionActive && !isCollapsed && (
+            <>
+              {/* Bottom Edge Resize Bar */}
+              <div
+                onMouseDown={(e) => handleResizeStart(e, 'bottom')}
+                className="absolute bottom-0 inset-x-0 h-2 cursor-ns-resize z-40 hover:bg-blue-500/20 transition-colors"
+                title="按住拖拽调整高度"
+              />
+              {/* Right Edge Resize Bar */}
+              <div
+                onMouseDown={(e) => handleResizeStart(e, 'right')}
+                className="absolute right-0 inset-y-0 w-2 cursor-ew-resize z-40 hover:bg-blue-500/20 transition-colors"
+                title="按住拖拽调整宽度"
+              />
+              {/* Bottom-Right Corner Resize Bar */}
+              <div
+                onMouseDown={(e) => handleResizeStart(e, 'corner')}
+                className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize z-50 hover:bg-blue-500/40 transition-colors"
+                title="按住拖拽调整宽高"
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

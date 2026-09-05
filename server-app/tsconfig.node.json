@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "noEmit": true
+  },
+  "include": ["vite.config.ts", "scripts/**/*.mjs", "src/main/**/*.ts", "src/preload/**/*.ts"]
+}

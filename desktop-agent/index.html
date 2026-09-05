@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>松鼠Pad - 桌面伴侣</title>
+    <!-- Content Security Policy for Electron renderer -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss: http: https:;"
+    />
+  </head>
+  <body class="bg-transparent text-slate-100 antialiased select-none overflow-hidden m-0 p-0 font-sans">
+    <div id="root" class="w-full h-full"></div>
+    <script type="module" src="/src/renderer/main.tsx"></script>
+  </body>
+</html>
