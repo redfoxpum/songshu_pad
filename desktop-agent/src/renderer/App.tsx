@@ -178,9 +178,12 @@ export const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
       if (isCmdOrCtrl && e.shiftKey) {
-        if (e.code === 'KeyB' || e.code === 'KeyV') {
+        if (e.code === 'KeyB') {
           e.preventDefault();
           window.electronAPI?.toggleWindowVisibility();
+        } else if (e.code === 'KeyX') {
+          e.preventDefault();
+          window.electronAPI?.toggleClickThrough();
         } else if (e.code === 'BracketLeft' || e.key === '[' || e.key === '{') {
           e.preventDefault();
           setOpacity((prev) => {

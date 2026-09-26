@@ -124,25 +124,15 @@ export function registerGlobalShortcuts(
     } catch (e) {}
   }
 
-  // 1. Click-through toggling (Primary Cmd+Shift+X, Secondary Cmd+Shift+P)
+  // 1. Click-through toggling (Cmd+Shift+X)
   const registeredX = globalShortcut.register('CommandOrControl+Shift+X', () => {
     console.log('[Shortcut] Cmd+Shift+X triggered. Toggling click-through...');
     toggleClickThrough();
   });
 
-  const registeredP = globalShortcut.register('CommandOrControl+Shift+P', () => {
-    console.log('[Shortcut] Cmd+Shift+P triggered. Toggling click-through...');
-    toggleClickThrough();
-  });
-
-  // 2. Window visibility toggle (Cmd+Shift+B / Cmd+Shift+V: completely hide from screen, press again to show)
+  // 2. Window visibility toggle (Cmd+Shift+B: completely hide from screen, press again to show)
   const registeredB = globalShortcut.register('CommandOrControl+Shift+B', () => {
     console.log('[Shortcut] Cmd+Shift+B triggered. Toggling window visibility...');
-    toggleWindowVisibility();
-  });
-
-  const registeredV = globalShortcut.register('CommandOrControl+Shift+V', () => {
-    console.log('[Shortcut] Cmd+Shift+V triggered. Toggling window visibility...');
     toggleWindowVisibility();
   });
 
@@ -160,7 +150,6 @@ export function registerGlobalShortcuts(
   console.log(
     `[Shortcuts] Registered: ` +
     `Cmd+Shift+X: ${registeredX}, ` +
-    `Cmd+Shift+P: ${registeredP}, ` +
     `Cmd+Shift+B: ${registeredB}, ` +
     `Cmd+Shift+[: ${registeredBracketLeft}, ` +
     `Cmd+Shift+]: ${registeredBracketRight}`

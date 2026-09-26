@@ -24,7 +24,7 @@
 - **跨平台原生支持**：全面支持 **Windows (x64)**、**macOS Intel (x64)** 与 **macOS Apple Silicon (arm64)**。
 - **屏幕分享隐形防抓取**：启用 `setContentProtection(true)`，在 Zoom / Teams / 腾讯会议 / OBS / 系统录屏中**完全隐形（透明背景）**。
 - **高级悬浮置顶**：`alwaysOnTop: 'screen-saver'`，全屏与多桌面漫游置顶。
-- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+Shift+X` / `Cmd+Shift+P`，Windows 为 `Ctrl+Shift+X` / `Ctrl+Shift+P`）随时切换鼠标穿透。
+- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+Shift+X`，Windows 为 `Ctrl+Shift+X`）随时切换鼠标穿透。
 - **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+Shift+B`（Windows 为 `Ctrl+Shift+B`）一键完全隐藏窗口，再按一次即刻显示。
 - **底板透明度快捷调节**：全局快捷键 `Cmd+Shift+[`（Windows 为 `Ctrl+Shift+[`）降低底板透明度（更加透视），`Cmd+Shift+]`（Windows 为 `Ctrl+Shift+]`）增加底板透明度（加深底色），实时带 HUD 刻度提示。
 - **屏幕录制权限门禁**：macOS 环境智能检测权限并提供 3 步直达授权指引；Windows 环境免授权无缝直通。

@@ -14,6 +14,7 @@ import {
   Check,
   ArrowLeft,
   FileCode2,
+  Keyboard,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -60,8 +61,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onDisconnect,
 }) => {
   const [showOpacityMenu, setShowOpacityMenu] = useState(false);
+  const [showShortcutsMenu, setShowShortcutsMenu] = useState(false);
   const [roomCopied, setRoomCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const shortcutsMenuRef = useRef<HTMLDivElement>(null);
 
   const handleMinimize = () => {
     window.electronAPI?.minimizeWindow();
@@ -84,20 +87,24 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     }
   };
 
-  // Close opacity menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(target)) {
         setShowOpacityMenu(false);
       }
+      if (shortcutsMenuRef.current && !shortcutsMenuRef.current.contains(target)) {
+        setShowShortcutsMenu(false);
+      }
     };
-    if (showOpacityMenu) {
+    if (showOpacityMenu || showShortcutsMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showOpacityMenu]);
+  }, [showOpacityMenu, showShortcutsMenu]);
 
   const opacityPresets = [
     { label: '极透代码', value: 0.1 },
@@ -128,7 +135,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const shortcutTooltip = isWindows
     ? '点击切换鼠标穿透 (全局热键: Ctrl+Shift+X)'
     : '点击切换鼠标穿透 (全局热键: Cmd+Shift+X)';
-  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B / V' : '⌘⇧B / ⌘⇧V';
+  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B' : '⌘⇧B';
   const opacityDecShortcutDisplay = isWindows ? 'Ctrl+Shift+[' : '⌘⇧[';
   const opacityIncShortcutDisplay = isWindows ? 'Ctrl+Shift+]' : '⌘⇧]';
 
@@ -309,7 +316,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         {/* Opacity Selector Pill */}
         <div className="relative" ref={menuRef}>
           <button
-            onClick={() => setShowOpacityMenu(!showOpacityMenu)}
+            onClick={() => {
+              setShowOpacityMenu(!showOpacityMenu);
+              setShowShortcutsMenu(false);
+            }}
             title={`背景透明度: ${Math.round(opacity * 100)}% (快捷键: ${opacityDecShortcutDisplay} 降低 / ${opacityIncShortcutDisplay} 增加)`}
             className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg transition-all duration-150 border ${
               showOpacityMenu
@@ -390,6 +400,84 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               <div className="pt-1.5 border-t border-white/10 flex items-center gap-1.5 text-[10px] text-slate-400 font-sans">
                 <Sparkles className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                 <span>代码文字与工具栏始终 100% 极清</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Shortcuts List Popover */}
+        <div className="relative" ref={shortcutsMenuRef}>
+          <button
+            onClick={() => {
+              setShowShortcutsMenu(!showShortcutsMenu);
+              setShowOpacityMenu(false);
+            }}
+            title="查看全局快捷键列表"
+            className={`flex items-center gap-1 px-2 py-1 text-[11px] rounded-lg transition-all duration-150 border ${
+              showShortcutsMenu
+                ? 'bg-white/15 text-white border-white/25 shadow-xs'
+                : 'text-slate-300 hover:text-white hover:bg-white/[0.08] border-white/10'
+            }`}
+          >
+            <Keyboard className="w-3 h-3 text-slate-400" />
+            <span className="font-sans text-[11px] font-medium hidden sm:inline">快捷键</span>
+          </button>
+
+          {showShortcutsMenu && (
+            <div className="absolute right-0 top-full mt-2 bg-[#0a0f1a]/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-3 z-50 w-72 animate-in fade-in zoom-in-95 duration-150 app-no-drag">
+              <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
+                <div className="flex items-center gap-1.5">
+                  <Keyboard className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="text-xs font-semibold text-slate-200 font-sans">快捷键一览</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">全局响应</span>
+              </div>
+
+              <div className="flex flex-col gap-2 mb-2.5">
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">全屏隐藏 / 显示</span>
+                    <span className="text-[9px] text-slate-400">老板键，瞬间隐藏或唤回窗口</span>
+                  </div>
+                  <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-emerald-300 font-semibold border border-white/10">
+                    {hideShortcutDisplay}
+                  </kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">鼠标穿透模式</span>
+                    <span className="text-[9px] text-slate-400">穿透后可直接点击操作下层应用</span>
+                  </div>
+                  <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-purple-300 font-semibold border border-white/10">
+                    {shortcutDisplay}
+                  </kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">降低底板透明度</span>
+                    <span className="text-[9px] text-slate-400">每次降低 10%，更通透</span>
+                  </div>
+                  <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-cyan-300 font-semibold border border-white/10">
+                    {opacityDecShortcutDisplay}
+                  </kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">增加底板透明度</span>
+                    <span className="text-[9px] text-slate-400">每次增加 10%，加深底色</span>
+                  </div>
+                  <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-cyan-300 font-semibold border border-white/10">
+                    {opacityIncShortcutDisplay}
+                  </kbd>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 text-[10px] text-slate-400 font-sans">
+                <Sparkles className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                <span>全局热键在后台或全屏应用中随时可用</span>
               </div>
             </div>
           )}
