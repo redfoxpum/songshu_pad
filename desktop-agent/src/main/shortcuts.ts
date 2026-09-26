@@ -113,6 +113,7 @@ export function registerGlobalShortcuts(
     'CommandOrControl+Shift+X',
     'CommandOrControl+Shift+P',
     'CommandOrControl+Shift+B',
+    'CommandOrControl+Shift+V',
     'CommandOrControl+Shift+[',
     'CommandOrControl+Shift+]',
   ];
@@ -134,9 +135,14 @@ export function registerGlobalShortcuts(
     toggleClickThrough();
   });
 
-  // 2. Window visibility toggle (Cmd+Shift+B: completely hide from screen, press again to show)
+  // 2. Window visibility toggle (Cmd+Shift+B / Cmd+Shift+V: completely hide from screen, press again to show)
   const registeredB = globalShortcut.register('CommandOrControl+Shift+B', () => {
     console.log('[Shortcut] Cmd+Shift+B triggered. Toggling window visibility...');
+    toggleWindowVisibility();
+  });
+
+  const registeredV = globalShortcut.register('CommandOrControl+Shift+V', () => {
+    console.log('[Shortcut] Cmd+Shift+V triggered. Toggling window visibility...');
     toggleWindowVisibility();
   });
 

@@ -128,7 +128,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const shortcutTooltip = isWindows
     ? '点击切换鼠标穿透 (全局热键: Ctrl+Shift+X)'
     : '点击切换鼠标穿透 (全局热键: Cmd+Shift+X)';
-  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B' : '⌘⇧B';
+  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B / V' : '⌘⇧B / ⌘⇧V';
   const opacityDecShortcutDisplay = isWindows ? 'Ctrl+Shift+[' : '⌘⇧[';
   const opacityIncShortcutDisplay = isWindows ? 'Ctrl+Shift+]' : '⌘⇧]';
 
