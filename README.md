@@ -20,11 +20,14 @@
 - **⚡ On-Demand 即时截屏**：房主点击 `[📸 立即抓取屏幕]`，秒级触发被控端全屏截图并弹出高清大图。
 - **⏰ 30s 截图画廊**：时间轴倒序展示历史截图，区分定时与即时徽标，支持全屏大图查看器与键盘翻页。
 
-### 3. 🕵️ macOS 桌面伴侣被控端 (`desktop-agent`)
+### 3. 🕵️ 多端桌面伴侣被控端 (`desktop-agent`)
+- **跨平台原生支持**：全面支持 **Windows (x64)**、**macOS Intel (x64)** 与 **macOS Apple Silicon (arm64)**。
 - **屏幕分享隐形防抓取**：启用 `setContentProtection(true)`，在 Zoom / Teams / 腾讯会议 / OBS / 系统录屏中**完全隐形（透明背景）**。
 - **高级悬浮置顶**：`alwaysOnTop: 'screen-saver'`，全屏与多桌面漫游置顶。
-- **点击穿透 (Click-Through)**：支持全局快捷键 `Cmd+Shift+X` 或 `Cmd+Shift+P` 随时切换鼠标穿透。
-- **屏幕录制权限门禁**：启动检测 macOS 屏幕录制权限，未授权友好拦截并引导直达系统设置。
+- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+Shift+X` / `Cmd+Shift+P`，Windows 为 `Ctrl+Shift+X` / `Ctrl+Shift+P`）随时切换鼠标穿透。
+- **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+Shift+B`（Windows 为 `Ctrl+Shift+B`）一键完全隐藏窗口，再按一次即刻显示。
+- **底板透明度快捷调节**：全局快捷键 `Cmd+Shift+[`（Windows 为 `Ctrl+Shift+[`）降低底板透明度（更加透视），`Cmd+Shift+]`（Windows 为 `Ctrl+Shift+]`）增加底板透明度（加深底色），实时带 HUD 刻度提示。
+- **屏幕录制权限门禁**：macOS 环境智能检测权限并提供 3 步直达授权指引；Windows 环境免授权无缝直通。
 - **双重截图上传引擎**：30 秒定时静默上传 + WebSocket 毫秒级响应房主 On-Demand 截屏指令。
 - **Glassmorphism HUD**：支持 48px 胶囊折叠、4 档透明度调节、截图倒计时与即时响应状态反馈。
 
@@ -47,7 +50,8 @@ coder_pad_平替/
 │   ├── src/
 │   │   ├── main/             # 主进程: 自动化内嵌服务、Cloudflare 穿透、Finder 调用
 │   │   └── renderer/         # UI 控制台: 房间列表、监控大屏、On-Demand 按钮、画廊
-└── desktop-agent/            # [macOS App] 被控端桌面伴侣 (Electron + React)
+└── desktop-agent/            # [跨平台 App] 被控端桌面伴侣 (macOS/Windows + Electron + React)
+    ├── build/                # 应用图标 (.icns, .ico, .png)
     ├── src/
     │   ├── main/             # 主进程: 防录屏隐形、置顶漫游、穿透、权限检测、屏幕抓取
     │   └── renderer/         # UI 悬浮窗: 权限引导、连接配置、Glassmorphism HUD
@@ -71,7 +75,7 @@ npm run dev
 # 启动 macOS 主控端 Server App (开发调试)
 npm run dev:server-app
 
-# 启动 macOS 被控端 Desktop Agent (开发调试)
+# 启动被控端 Desktop Agent (开发调试)
 npm run dev:agent
 ```
 
@@ -80,14 +84,28 @@ npm run dev:agent
 npm run build:all
 ```
 
-### 4. 构建 macOS 原生安装包 (`.dmg` / `.zip`)
-```bash
-# 打包 macOS 主控端 App
-npm run package:mac --workspace=server-app
+### 4. 构建多端原生安装包与可执行文件
 
-# 打包 macOS 被控端 Agent
-npm run package:mac --workspace=desktop-agent
+#### 📦 被控端 Desktop Agent 多平台构建：
+```bash
+# 1. 构建 Mac Intel 处理器版本 (.dmg / .zip)
+npm run package:agent:mac:intel
+
+# 2. 构建 Mac Apple Silicon (M1/M2/M3/M4) 版本 (.dmg / .zip)
+npm run package:agent:mac:arm
+
+# 3. 构建 Windows 版本 (.exe 安装包 / 免安装 Portable 便携版 / .zip)
+npm run package:agent:win
+
+# 4. 一键构建所有平台包 (Mac + Windows)
+npm run package:agent:all
 ```
+
+#### 📦 主控端 Server App 构建：
+```bash
+npm run package:mac --workspace=server-app
+```
+
 打包产物将分别输出在 `server-app/release/` 与 `desktop-agent/release/` 目录下。
 
 ---

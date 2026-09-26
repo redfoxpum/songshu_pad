@@ -1,6 +1,12 @@
 import { ipcMain, BrowserWindow, app } from 'electron';
 import { checkScreenRecordingPermission, openScreenPermissionSettings } from './permissions.js';
-import { toggleClickThrough, setClickThroughState, getClickThroughState } from './shortcuts.js';
+import {
+  toggleClickThrough,
+  setClickThroughState,
+  getClickThroughState,
+  toggleWindowVisibility,
+  adjustOpacity,
+} from './shortcuts.js';
 import { agentService } from './agentService.js';
 import { ConnectionConfig } from '../types/ipc.js';
 import { getMainWindow } from './window.js';
@@ -37,6 +43,87 @@ export function setupIpcHandlers(_initialWindow?: BrowserWindow | null) {
     return agentService.captureAndUploadInitial(serverUrl);
   });
 
+  // REST Code Synchronization Handlers (Node.js fetch runs without CORS/sandbox limitations)
+  ipcMain.handle(
+    'fetch-room-code',
+    async (
+      _event,
+      {
+        serverUrl,
+        roomId,
+        sinceVersion,
+        waitMs,
+      }: { serverUrl: string; roomId: string; sinceVersion?: number; waitMs?: number }
+    ) => {
+      try {
+        const cleanServer = (serverUrl || 'http://localhost:3000').trim().replace(/\/+$/, '');
+        let url = `${cleanServer}/api/rooms/${encodeURIComponent(roomId)}/code`;
+        const params = new URLSearchParams();
+        if (sinceVersion !== undefined && sinceVersion >= 0) {
+          params.append('sinceVersion', String(sinceVersion));
+        }
+        if (waitMs !== undefined && waitMs > 0) {
+          params.append('waitMs', String(waitMs));
+        }
+        const qs = params.toString();
+        if (qs) {
+          url += `?${qs}`;
+        }
+
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (!res.ok) {
+          return { success: false, error: `HTTP ${res.status} ${res.statusText}` };
+        }
+        const data = await res.json();
+        return data;
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Fetch room code failed' };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'push-room-code',
+    async (
+      _event,
+      {
+        serverUrl,
+        roomId,
+        payload,
+      }: {
+        serverUrl: string;
+        roomId: string;
+        payload: { code: string; language?: string; clientId?: string; author?: string };
+      }
+    ) => {
+      try {
+        const cleanServer = (serverUrl || 'http://localhost:3000').trim().replace(/\/+$/, '');
+        const url = `${cleanServer}/api/rooms/${encodeURIComponent(roomId)}/code`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          return { success: false, error: `HTTP ${res.status} ${res.statusText}` };
+        }
+        const data = await res.json();
+        return data;
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Push room code failed' };
+      }
+    }
+  );
+
   // Click-through toggling
   ipcMain.handle('toggle-click-through', async () => {
     return toggleClickThrough(getMainWindow());
@@ -44,6 +131,16 @@ export function setupIpcHandlers(_initialWindow?: BrowserWindow | null) {
 
   ipcMain.handle('set-click-through', async (_event, enabled: boolean) => {
     return setClickThroughState(getMainWindow(), enabled);
+  });
+
+  // Window visibility toggling (Cmd+Shift+B)
+  ipcMain.handle('toggle-window-visibility', async () => {
+    return toggleWindowVisibility(getMainWindow());
+  });
+
+  // Opacity adjustment delta (Cmd+Shift+[ / Cmd+Shift+])
+  ipcMain.handle('adjust-window-opacity', async (_event, delta: number) => {
+    adjustOpacity(delta, getMainWindow());
   });
 
   // Window properties (Native window stays at full opacity 1.0, transparency is handled in web background)

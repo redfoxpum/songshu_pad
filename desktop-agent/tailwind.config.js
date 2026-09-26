@@ -27,6 +27,7 @@ export default {
       },
       fontFamily: {
         sans: [
+          "Figtree",
           "-apple-system",
           "BlinkMacSystemFont",
           "SF Pro Display",
@@ -38,6 +39,7 @@ export default {
           "sans-serif",
         ],
         mono: [
+          "JetBrains Mono",
           "SF Mono",
           "Menlo",
           "Monaco",

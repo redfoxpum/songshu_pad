@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { RoomItem } from '../types';
 import { formatRelativeTime } from '../utils/api';
-import { Plus, Search, Layers, Image as ImageIcon, RefreshCw, Lock, Radio } from 'lucide-react';
+import {
+  Plus,
+  Search,
+  Layers,
+  Image as ImageIcon,
+  RefreshCw,
+  Lock,
+  ListChecks,
+  CheckSquare,
+  Square,
+  Check,
+  X,
+} from 'lucide-react';
 
 interface RoomSidebarProps {
   rooms: RoomItem[];
@@ -10,6 +22,7 @@ interface RoomSidebarProps {
   onOpenCreateModal: () => void;
   onRefresh: () => void;
   isLoading: boolean;
+  onOpenBulkClose: (targetRooms: RoomItem[]) => void;
 }
 
 export const RoomSidebar: React.FC<RoomSidebarProps> = ({
@@ -19,9 +32,12 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   onOpenCreateModal,
   onRefresh,
   isLoading,
+  onOpenBulkClose,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusTab, setStatusTab] = useState<'all' | 'active' | 'closed'>('active');
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<Set<string>>(new Set());
 
   const activeCount = rooms.filter((r) => r.status !== 'closed').length;
   const closedCount = rooms.filter((r) => r.status === 'closed').length;
@@ -44,18 +60,105 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
     return '🐍';
   };
 
+  // Toggle single room in batch selection
+  const handleToggleBatchRoom = (roomId: string) => {
+    setSelectedBatchIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(roomId)) {
+        next.delete(roomId);
+      } else {
+        next.add(roomId);
+      }
+      return next;
+    });
+  };
+
+  // Select all active rooms in currently filtered list
+  const handleSelectAllActive = () => {
+    const activeFiltered = filteredRooms.filter((r) => r.status !== 'closed');
+    const allActiveSelected = activeFiltered.every((r) => selectedBatchIds.has(r.id));
+
+    setSelectedBatchIds((prev) => {
+      const next = new Set(prev);
+      if (allActiveSelected) {
+        // Unselect all active in current list
+        activeFiltered.forEach((r) => next.delete(r.id));
+      } else {
+        // Select all active in current list
+        activeFiltered.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  // Select all rooms in currently filtered list
+  const handleSelectAllFiltered = () => {
+    const allSelected = filteredRooms.every((r) => selectedBatchIds.has(r.id));
+    setSelectedBatchIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        filteredRooms.forEach((r) => next.delete(r.id));
+      } else {
+        filteredRooms.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  };
+
+  // Clear batch selection
+  const handleClearBatch = () => {
+    setSelectedBatchIds(new Set());
+  };
+
+  // Exit batch mode
+  const handleExitBatchMode = () => {
+    setIsBatchMode(false);
+    setSelectedBatchIds(new Set());
+  };
+
+  // Trigger Bulk Close
+  const handleTriggerBulkClose = () => {
+    if (selectedBatchIds.size === 0) return;
+    const selectedRooms = rooms.filter((r) => selectedBatchIds.has(r.id));
+    onOpenBulkClose(selectedRooms);
+  };
+
+  const selectedCount = selectedBatchIds.size;
+  const activeSelectedCount = rooms.filter((r) => selectedBatchIds.has(r.id) && r.status !== 'closed').length;
+
   return (
     <aside className="w-80 bg-[#0D111D] border-r border-[#1F293D] flex flex-col shrink-0 select-none">
       {/* Top Action & Search */}
       <div className="p-3.5 border-b border-[#1F293D] space-y-3">
-        {/* Create Room Button */}
-        <button
-          onClick={onOpenCreateModal}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
-        >
-          <Plus className="w-4 h-4" />
-          <span>创建新面试房间</span>
-        </button>
+        {/* Create Room & Batch Mode Header Row */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenCreateModal}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>创建新房间</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (isBatchMode) {
+                handleExitBatchMode();
+              } else {
+                setIsBatchMode(true);
+              }
+            }}
+            className={`flex items-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-xl transition-all border ${
+              isBatchMode
+                ? 'bg-rose-950/60 border-rose-500/60 text-rose-300 shadow-sm'
+                : 'bg-[#151D30] border-slate-700/60 hover:bg-slate-700/60 text-slate-300 hover:text-white'
+            }`}
+            title={isBatchMode ? '退出批量管理模式' : '开启批量管理 / 批量关闭模式'}
+          >
+            <ListChecks className="w-4 h-4" />
+            <span>{isBatchMode ? '退出批量' : '批量管理'}</span>
+          </button>
+        </div>
 
         {/* Search Bar & Refresh */}
         <div className="flex items-center gap-2">
@@ -114,11 +217,59 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
             <span>已归档 ({closedCount})</span>
           </button>
         </div>
+
+        {/* Batch Operations Toolbar (When in Batch Mode) */}
+        {isBatchMode && (
+          <div className="bg-[#151D30] border border-rose-500/40 rounded-xl p-2.5 space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-rose-300 flex items-center gap-1.5">
+                <CheckSquare className="w-3.5 h-3.5 text-rose-400" />
+                <span>已选 {selectedCount} 个房间</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleSelectAllActive}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-950/40 transition-colors"
+                >
+                  全选进行中
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  onClick={handleSelectAllFiltered}
+                  className="text-[11px] text-sky-400 hover:text-sky-300 px-1.5 py-0.5 rounded hover:bg-sky-950/40 transition-colors"
+                >
+                  全选
+                </button>
+                <span className="text-slate-600">|</span>
+                <button
+                  onClick={handleClearBatch}
+                  className="text-[11px] text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors"
+                >
+                  清空
+                </button>
+              </div>
+            </div>
+
+            {/* Bulk Close Button */}
+            <button
+              onClick={handleTriggerBulkClose}
+              disabled={selectedCount === 0}
+              className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg shadow-md transition-all active:scale-[0.98] ${
+                selectedCount > 0
+                  ? 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/30'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>批量关闭所选房间 ({selectedCount})</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Room List Header */}
       <div className="px-4 py-2 flex items-center justify-between text-[11px] font-semibold text-slate-400 uppercase tracking-wider bg-[#0B0F19]/40 border-b border-[#1F293D]/50">
-        <span>房间列表 ({filteredRooms.length})</span>
+        <span>{isBatchMode ? `选择房间 (${selectedCount}/${filteredRooms.length})` : `房间列表 (${filteredRooms.length})`}</span>
         <span>状态 / 截图</span>
       </div>
 
@@ -137,15 +288,26 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
         ) : (
           filteredRooms.map((room) => {
             const isSelected = selectedRoomId === room.id;
+            const isBatchSelected = selectedBatchIds.has(room.id);
             const isClosed = room.status === 'closed';
             const isAgentConnected = !isClosed && (room.candidateStatus?.connected || false);
 
             return (
               <div
                 key={room.id}
-                onClick={() => onSelectRoom(room.id)}
+                onClick={() => {
+                  if (isBatchMode) {
+                    handleToggleBatchRoom(room.id);
+                  } else {
+                    onSelectRoom(room.id);
+                  }
+                }}
                 className={`group p-3 rounded-xl cursor-pointer transition-all border ${
-                  isSelected
+                  isBatchMode
+                    ? isBatchSelected
+                      ? 'bg-[#151D30] border-rose-500/70 shadow-md ring-1 ring-rose-500/40'
+                      : 'bg-[#111827]/60 border-transparent hover:bg-[#151D30]/80 hover:border-slate-800'
+                    : isSelected
                     ? isClosed
                       ? 'bg-[#151D30] border-slate-600 shadow-md ring-1 ring-slate-500/30'
                       : 'bg-[#151D30] border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
@@ -155,11 +317,30 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {/* Batch Selection Checkbox */}
+                    {isBatchMode && (
+                      <div
+                        className={`w-4 h-4 rounded flex items-center justify-center transition-colors shrink-0 ${
+                          isBatchSelected
+                            ? 'bg-rose-600 text-white'
+                            : 'border border-slate-600 bg-slate-800/80 group-hover:border-slate-400'
+                        }`}
+                      >
+                        {isBatchSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    )}
+
                     <span className="text-base shrink-0">{getLanguageIcon(room.language)}</span>
                     <h4
                       className={`text-xs font-semibold truncate ${
-                        isSelected ? 'text-white' : isClosed ? 'text-slate-400' : 'text-slate-200 group-hover:text-white'
+                        isBatchSelected
+                          ? 'text-white'
+                          : isSelected && !isBatchMode
+                          ? 'text-white'
+                          : isClosed
+                          ? 'text-slate-400'
+                          : 'text-slate-200 group-hover:text-white'
                       }`}
                     >
                       {room.name || room.id}
@@ -191,7 +372,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                 </div>
 
                 {/* Slug Badge & Screenshot Count */}
-                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <div className={`flex items-center justify-between gap-2 text-[11px] text-slate-400 ${isBatchMode ? 'pl-6' : ''}`}>
                   <div className="font-mono text-slate-400 truncate bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-800/80">
                     {room.id}
                   </div>
@@ -216,3 +397,4 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
     </aside>
   );
 };
+export default RoomSidebar;

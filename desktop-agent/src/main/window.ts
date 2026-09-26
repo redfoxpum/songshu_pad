@@ -19,6 +19,11 @@ export function createFloatingWindow(): BrowserWindow {
   const initialX = Math.max(0, screenWidth - defaultWidth - 24);
   const initialY = 48;
 
+  // Window icon path
+  const iconPath = process.platform === 'win32'
+    ? path.join(__dirname, '../../build/icon.ico')
+    : path.join(__dirname, '../../build/icon.png');
+
   mainWindow = new BrowserWindow({
     width: defaultWidth,
     height: defaultHeight,
@@ -38,16 +43,19 @@ export function createFloatingWindow(): BrowserWindow {
     skipTaskbar: false,
     backgroundColor: '#00000000',
     title: '松鼠Pad 桌面端',
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
+      webSecurity: false,
     },
   });
 
   // 1. Screen Share Invisibility (防录屏 / 防截屏)
-  // On macOS this executes [window setSharingType:NSWindowSharingNone]
+  // On macOS: [window setSharingType:NSWindowSharingNone]
+  // On Windows: SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)
   try {
     mainWindow.setContentProtection(true);
     console.log('[Window] setContentProtection(true) successfully enabled.');
@@ -55,11 +63,13 @@ export function createFloatingWindow(): BrowserWindow {
     console.error('[Window] Failed to enable setContentProtection:', err);
   }
 
-  // 2. Always On Top with 'screen-saver' level
+  // 2. Always On Top with highest overlay level
   try {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
-    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    console.log('[Window] setAlwaysOnTop(screen-saver) and setVisibleOnAllWorkspaces enabled.');
+    if (process.platform === 'darwin') {
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    }
+    console.log('[Window] setAlwaysOnTop enabled.');
   } catch (err) {
     console.error('[Window] Failed to set always-on-top level:', err);
   }

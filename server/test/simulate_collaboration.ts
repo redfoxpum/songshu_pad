@@ -153,9 +153,41 @@ async function runSimulationTest() {
   }
   console.log('✅ Persistence verified: State successfully loaded from disk.');
 
+  // Step 6: 4-Client Rapid Concurrent Typing Stress Test (3 Web Tabs + 1 Desktop Agent)
+  console.log('\n[Test] Step 6: 4-Client Rapid Stress Test (3 Web Tabs + 1 Desktop Agent)...');
+  const doc3 = new Y.Doc();
+  const provider3 = new WebsocketProvider(wsUrl, roomId, doc3, { WebSocketPolyfill: WebSocket as any, disableBc: true });
+  const yText3 = doc3.getText('codemirror');
+
+  const doc4 = new Y.Doc();
+  const provider4 = new WebsocketProvider(wsUrl, roomId, doc4, { WebSocketPolyfill: WebSocket as any, disableBc: true });
+  const yText4 = doc4.getText('codemirror');
+
+  await sleep(600);
+
+  // Simultaneous burst edits from all 4 clients
+  doc1.transact(() => yText1.insert(0, '// Client1 Edit\n'));
+  doc2.transact(() => yText2.insert(yText2.length, '\n// Client2 Edit'));
+  doc3.transact(() => yText3.insert(10, '/* Client3 Tab */ '));
+  doc4.transact(() => yText4.insert(50, ' [Client4 DesktopAgent] '));
+
+  await sleep(1000);
+
+  const final1 = yText1.toString();
+  const final2 = yText2.toString();
+  const final3 = yText3.toString();
+  const final4 = yText4.toString();
+
+  if (final1 !== final2 || final2 !== final3 || final3 !== final4) {
+    throw new Error(`CRDT Divergence among 4 clients!\nDoc1 length: ${final1.length}, Doc2: ${final2.length}, Doc3: ${final3.length}, Doc4: ${final4.length}`);
+  }
+  console.log('✅ 4-Client Stress Test passed: All 4 clients (3 Web Tabs + 1 Desktop Agent) converged to 100% identical state.');
+
   // Clean up
   provider1.destroy();
   provider2.destroy();
+  provider3.destroy();
+  provider4.destroy();
   server.close();
 
   console.log('\n🎉 ALL COLLABORATION & CRDT TESTS PASSED SUCCESSFULLY! 🎉\n');

@@ -58,9 +58,12 @@ export function initWebSocketServer(wss: WebSocketServer): void {
         saveRoomState(sanitized, ydoc);
       }
 
-      ydoc.on('update', () => {
-        debounceSaveRoomState(sanitized, ydoc);
-      });
+      if (!(ydoc as any)._hasPersistListener) {
+        (ydoc as any)._hasPersistListener = true;
+        ydoc.on('update', () => {
+          debounceSaveRoomState(sanitized, ydoc);
+        });
+      }
     },
     writeState: async (docName: string, ydoc: Y.Doc) => {
       const sanitized = sanitizeRoomId(docName);

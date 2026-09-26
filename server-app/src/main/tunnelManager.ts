@@ -74,6 +74,16 @@ export class TunnelManager {
       return this.getStatus();
     }
 
+    // Kill any orphan cloudflared processes from previous crashes or runs
+    try {
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const { execSync } = await import('child_process');
+        execSync("pkill -f 'cloudflared tunnel' 2>/dev/null || true");
+      }
+    } catch {
+      // ignore
+    }
+
     const binary = this.findCloudflaredBinary() || 'cloudflared';
     this.status = {
       status: 'connecting',

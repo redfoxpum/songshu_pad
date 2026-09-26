@@ -48,6 +48,12 @@ export interface CaptureResult {
 }
 
 export interface ElectronAPI {
+  // Platform metadata
+  platform: string;
+  arch: string;
+  isMac: boolean;
+  isWindows: boolean;
+
   // Screen permission APIs
   checkScreenPermission: () => Promise<ScreenPermissionResult>;
   openScreenPermissionSettings: () => Promise<boolean>;
@@ -62,16 +68,32 @@ export interface ElectronAPI {
   // Window & Overlay controls
   toggleClickThrough: () => Promise<boolean>;
   setClickThrough: (enabled: boolean) => Promise<boolean>;
+  toggleWindowVisibility: () => Promise<boolean>;
+  adjustWindowOpacity: (delta: number) => Promise<void>;
   setWindowOpacity: (opacity: number) => Promise<void>;
   setWindowSize: (width: number, height: number) => Promise<void>;
   getWindowSize: () => Promise<[number, number]>;
   setContentProtection: (enabled: boolean) => Promise<boolean>;
   minimizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
+  // Code Synchronization REST APIs (IPC-based bypasses all web sandbox/CORS restrictions)
+  fetchRoomCode: (
+    serverUrl: string,
+    roomId: string,
+    sinceVersion?: number,
+    waitMs?: number
+  ) => Promise<{ success: boolean; code?: string; language?: string; version?: number; error?: string }>;
+  pushRoomCode: (
+    serverUrl: string,
+    roomId: string,
+    payload: { code: string; language?: string; clientId?: string; author?: string }
+  ) => Promise<{ success: boolean; version?: number; error?: string }>;
 
   // Event Listeners from Main Process
   onAgentStatusUpdate: (callback: (status: AgentStatus) => void) => () => void;
   onClickThroughToggled: (callback: (enabled: boolean) => void) => () => void;
   onOnDemandTriggered: (callback: (data: { requestId: string; timestamp: number }) => void) => () => void;
   onCaptureCompleted: (callback: (result: CaptureResult) => void) => () => void;
+  onAdjustOpacity: (callback: (delta: number) => void) => () => void;
+  onVisibilityChanged: (callback: (visible: boolean) => void) => () => void;
 }

@@ -13,8 +13,11 @@
     background-color: transparent !important;
     user-select: none;
     -webkit-user-select: none;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #f1f5f9;
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -27,13 +30,62 @@
   -webkit-app-region: no-drag;
 }
 
-/* Apple Liquid Glass Card */
+/* Liquid Obsidian Frosted Glass Card */
 .liquid-glass {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 
-    0 24px 48px -12px rgba(0, 0, 0, 0.95),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-    0 1px 2px 0 rgba(255, 255, 255, 0.15) inset;
+    0 24px 50px -12px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 1px 1px 0 rgba(255, 255, 255, 0.2) inset;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Apple Dynamic Island Capsule Mode */
+.dynamic-capsule {
+  background: rgba(10, 14, 23, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    0 16px 36px -6px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 1px 1px 0 rgba(255, 255, 255, 0.22) inset;
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dynamic-capsule:hover {
+  border-color: rgba(52, 211, 153, 0.45);
+  box-shadow: 
+    0 20px 42px -6px rgba(0, 0, 0, 0.92),
+    0 0 24px -4px rgba(16, 185, 129, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.16) inset;
+  transform: translateY(-0.5px);
+}
+
+/* Refined Glass Subcard */
+.glass-subcard {
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.glass-subcard:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Segmented Control Pill Item */
+.glass-pill {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-pill-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* CodeMirror Transparent Editor Overrides */
@@ -53,55 +105,13 @@
 .cm-editor .cm-content,
 .cm-editor .cm-line {
   background-color: transparent !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.85);
-  letter-spacing: 0.3px;
-  font-weight: 550;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.2px;
 }
 
 .cm-editor .cm-gutters {
   background-color: transparent !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Dynamic Island Capsule Mode */
-.dynamic-capsule {
-  background-color: #090d16 !important;
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(9, 12, 19, 0.99) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow: 
-    0 16px 32px -8px rgba(0, 0, 0, 0.95),
-    0 0 0 1px rgba(255, 255, 255, 0.15) inset,
-    0 1px 1px 0 rgba(255, 255, 255, 0.25) inset;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dynamic-capsule:hover {
-  border-color: rgba(52, 211, 153, 0.5);
-  box-shadow: 
-    0 20px 40px -8px rgba(0, 0, 0, 0.95),
-    0 0 20px -4px rgba(16, 185, 129, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-}
-
-/* Glass Nested Card */
-.glass-subcard {
-  background: rgba(15, 21, 34, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.glass-subcard-emerald {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 182, 212, 0.03) 100%), rgba(12, 20, 28, 0.7);
-  border: 1px solid rgba(52, 211, 153, 0.25);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.glass-subcard-purple {
-  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.03) 100%), rgba(20, 14, 30, 0.75);
-  border: 1px solid rgba(192, 132, 252, 0.3);
-  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 /* macOS 3D Keycap Badge */
@@ -109,14 +119,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   font-weight: 600;
-  color: #e2e8f0;
-  background: linear-gradient(180deg, #2d3748 0%, #1a202c 100%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #cbd5e1;
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.8) 0%, rgba(30, 41, 59, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-bottom: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   padding: 1px 5px;
   font-size: 10px;
   line-height: 1.2;
@@ -148,8 +158,8 @@
 
 /* Smooth Slim Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -157,37 +167,26 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 /* Smooth breathing glow */
 @keyframes neon-breath {
   0%, 100% {
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
   }
   50% {
-    box-shadow: 0 0 24px rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 24px rgba(16, 185, 129, 0.55);
   }
 }
 
 .neon-breathe-emerald {
   animation: neon-breath 2.4s ease-in-out infinite;
-}
-
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100%);
-  }
-  100% {
-    transform: translateY(200%);
-  }
-}
-
-.animate-scan {
-  animation: scan-line 2.8s ease-in-out infinite;
 }

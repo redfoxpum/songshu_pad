@@ -16,6 +16,7 @@ import {
   getUnassignedScreenshotFilePath,
 } from './persistence.js';
 import { SupportedLanguage, TriggerType, ScreenshotMetadata } from './types.js';
+import { roomCodeManager } from './roomCodeManager.js';
 
 export const apiRouter = Router();
 
@@ -194,6 +195,51 @@ apiRouter.get('/rooms/:id', (req: Request, res: Response) => {
   }
 });
 
+// REST + Long-Polling: Get live room code (supports fast long-polling with ?sinceVersion=X&waitMs=8000)
+apiRouter.get(['/rooms/:roomId/code', '/rooms/:id/code'], async (req: Request, res: Response) => {
+  try {
+    const roomId = sanitizeRoomId(req.params.roomId || req.params.id || '');
+    if (!roomId) {
+      return res.status(400).json({ error: 'Invalid room ID' });
+    }
+
+    const sinceVersion = parseInt((req.query.sinceVersion as string) || '-1', 10);
+    const waitMs = parseInt((req.query.waitMs as string) || '0', 10);
+
+    if (sinceVersion >= 0 && waitMs > 0) {
+      const state = await roomCodeManager.waitForUpdate(roomId, sinceVersion, waitMs);
+      return res.json({ success: true, ...state });
+    }
+
+    const state = roomCodeManager.getRoomCodeState(roomId);
+    return res.json({ success: true, ...state });
+  } catch (error) {
+    console.error('[API] Failed to get room code:', error);
+    res.status(500).json({ error: 'Failed to get room code' });
+  }
+});
+
+// REST: Update room code and notify all polling clients immediately
+apiRouter.post(['/rooms/:roomId/code', '/rooms/:id/code'], (req: Request, res: Response) => {
+  try {
+    const roomId = sanitizeRoomId(req.params.roomId || req.params.id || '');
+    if (!roomId) {
+      return res.status(400).json({ error: 'Invalid room ID' });
+    }
+
+    const { code, language, clientId, author } = req.body || {};
+    if (typeof code !== 'string') {
+      return res.status(400).json({ error: 'Code content must be a string' });
+    }
+
+    const state = roomCodeManager.updateRoomCode(roomId, code, language, clientId, author);
+    return res.json({ success: true, ...state });
+  } catch (error) {
+    console.error('[API] Failed to update room code:', error);
+    res.status(500).json({ error: 'Failed to update room code' });
+  }
+});
+
 // Soft-delete / Close room (disconnects all participants and prevents new joins, preserves disk data)
 apiRouter.delete(['/rooms/:id', '/rooms/:id/close'], (req: Request, res: Response) => {
   try {
@@ -210,6 +256,41 @@ apiRouter.delete(['/rooms/:id', '/rooms/:id/close'], (req: Request, res: Respons
   } catch (error) {
     console.error('[API] Failed to close room:', error);
     res.status(500).json({ error: 'Failed to close room' });
+  }
+});
+
+// Bulk close rooms (disconnects all participants and prevents new joins for multiple rooms, preserves disk data)
+apiRouter.post(['/rooms/bulk-close', '/rooms/close-bulk', '/rooms/batch-close'], (req: Request, res: Response) => {
+  try {
+    let targetIds: string[] = [];
+    if (req.body?.allActive === true) {
+      const allRooms = roomManager.getAllRooms(undefined, false);
+      targetIds = allRooms.map((r) => r.id);
+    } else if (Array.isArray(req.body?.roomIds)) {
+      targetIds = req.body.roomIds;
+    } else if (typeof req.body?.roomIds === 'string') {
+      targetIds = [req.body.roomIds];
+    }
+
+    if (targetIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No room IDs provided or no active rooms found',
+        closedCount: 0,
+        closedIds: [],
+        failedIds: [],
+      });
+    }
+
+    const result = roomManager.bulkCloseRooms(targetIds);
+    console.log(`[API] Bulk closed ${result.closedCount} room(s):`, result.closedIds);
+    res.json({
+      message: `Successfully closed ${result.closedCount} room(s)`,
+      ...result,
+    });
+  } catch (error) {
+    console.error('[API] Failed to bulk close rooms:', error);
+    res.status(500).json({ error: 'Failed to bulk close rooms' });
   }
 });
 

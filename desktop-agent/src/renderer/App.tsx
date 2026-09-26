@@ -5,7 +5,7 @@ import { PermissionGate } from './components/PermissionGate';
 import { ConnectionForm } from './components/ConnectionForm';
 import { FloatingHUD } from './components/FloatingHUD';
 import { PadViewer } from './components/PadViewer';
-import { MoveDiagonal, UnfoldVertical } from 'lucide-react';
+import { Eye } from 'lucide-react';
 
 const STORAGE_OPACITY = 'squirrel_agent_opacity';
 const STORAGE_SIZE = 'squirrel_agent_window_size';
@@ -19,12 +19,21 @@ export const App: React.FC = () => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   const [opacity, setOpacity] = useState<number>(0.35);
+  const [opacityToast, setOpacityToast] = useState<{ visible: boolean; opacity: number } | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showOpacityToast = useCallback((val: number) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setOpacityToast({ visible: true, opacity: val });
+    toastTimerRef.current = setTimeout(() => {
+      setOpacityToast(null);
+    }, 1200);
+  }, []);
+
   const [isOnDemandActive, setIsOnDemandActive] = useState<boolean>(false);
   const [language, setLanguage] = useState<string>('python');
-  const [code, setCode] = useState<string>('');
   const [fontSize, setFontSize] = useState<number>(13);
   const [wrapLines, setWrapLines] = useState<boolean>(true);
-  const [copied, setCopied] = useState<boolean>(false);
   const initialCaptureDoneRef = useRef<boolean>(false);
 
   // Saved window size state (defaults to 640x520)
@@ -143,14 +152,62 @@ export const App: React.FC = () => {
         console.log('[Renderer] Capture completed:', result);
       });
 
+      const unsubAdjustOpacity = window.electronAPI.onAdjustOpacity((delta) => {
+        setOpacity((prev) => {
+          const next = Math.max(0.05, Math.min(1.0, Math.round((prev + delta) * 100) / 100));
+          try {
+            localStorage.setItem(STORAGE_OPACITY, String(next));
+          } catch (e) {}
+          showOpacityToast(next);
+          return next;
+        });
+      });
+
       return () => {
         unsubStatus();
         unsubClickThrough();
         unsubOnDemand();
         unsubCaptureDone();
+        unsubAdjustOpacity();
       };
     }
-  }, [checkPermissions]);
+  }, [checkPermissions, showOpacityToast]);
+
+  // Handle in-window keyboard shortcuts fallback when window has focus
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl && e.shiftKey) {
+        if (e.code === 'KeyB') {
+          e.preventDefault();
+          window.electronAPI?.toggleWindowVisibility();
+        } else if (e.code === 'BracketLeft' || e.key === '[' || e.key === '{') {
+          e.preventDefault();
+          setOpacity((prev) => {
+            const next = Math.max(0.05, Math.min(1.0, Math.round((prev - 0.05) * 100) / 100));
+            try {
+              localStorage.setItem(STORAGE_OPACITY, String(next));
+            } catch (err) {}
+            showOpacityToast(next);
+            return next;
+          });
+        } else if (e.code === 'BracketRight' || e.key === ']' || e.key === '}') {
+          e.preventDefault();
+          setOpacity((prev) => {
+            const next = Math.max(0.05, Math.min(1.0, Math.round((prev + 0.05) * 100) / 100));
+            try {
+              localStorage.setItem(STORAGE_OPACITY, String(next));
+            } catch (err) {}
+            showOpacityToast(next);
+            return next;
+          });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showOpacityToast]);
 
   const isSessionActive = status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId));
 
@@ -175,6 +232,7 @@ export const App: React.FC = () => {
     try {
       localStorage.setItem(STORAGE_OPACITY, String(newOpacity));
     } catch (e) {}
+    showOpacityToast(newOpacity);
   };
 
   const handleConnect = async (serverUrl: string, roomId: string) => {
@@ -191,7 +249,13 @@ export const App: React.FC = () => {
     if (window.electronAPI) {
       await window.electronAPI.disconnectAgent();
     }
-    setStatus((prev) => ({ ...prev, connected: false, connecting: false }));
+    setStatus((prev) => ({
+      ...prev,
+      connected: false,
+      connecting: false,
+      reconnecting: false,
+      roomId: '',
+    }));
   };
 
   const handleToggleClickThrough = async () => {
@@ -203,24 +267,6 @@ export const App: React.FC = () => {
 
   const handleFontSizeChange = (delta: number) => {
     setFontSize((prev) => Math.max(10, Math.min(22, prev + delta)));
-  };
-
-  const handleCopyCode = () => {
-    if (code) {
-      navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  // Quick Height presets
-  const handleQuickHeight = (h: number) => {
-    const updated = { width: dimensionRef.current.width, height: h };
-    setWindowDimension(updated);
-    window.electronAPI?.setWindowSize(updated.width, updated.height);
-    try {
-      localStorage.setItem(STORAGE_SIZE, JSON.stringify(updated));
-    } catch (e) {}
   };
 
   // Interactive Drag-to-Resize Handlers
@@ -277,6 +323,23 @@ export const App: React.FC = () => {
         <div className="camera-flash-overlay rounded-2xl z-50 pointer-events-none" />
       )}
 
+      {/* Opacity Adjustment HUD Toast */}
+      {opacityToast && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 animate-in fade-in zoom-in-95">
+          <div className="px-3.5 py-1.5 rounded-full bg-slate-900/95 border border-white/20 shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs font-sans text-white/95">
+            <Eye className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="font-medium text-slate-300">底板透明度</span>
+            <span className="font-mono font-bold text-emerald-400">{Math.round(opacityToast.opacity * 100)}%</span>
+            <div className="w-16 h-1.5 bg-slate-700/80 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-150"
+                style={{ width: `${Math.round(opacityToast.opacity * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCollapsed ? (
         <FloatingHUD
           status={status}
@@ -285,14 +348,14 @@ export const App: React.FC = () => {
         />
       ) : (
         <div
-          className="liquid-glass w-full h-full flex flex-col rounded-2xl overflow-hidden shadow-glass border border-white/15 relative transition-colors duration-150"
+          className="liquid-glass w-full h-full flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative transition-colors duration-200"
           style={{
-            backgroundColor: `rgba(15, 23, 42, ${Math.max(0.05, opacity)})`,
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
+            backgroundColor: `rgba(10, 15, 26, ${Math.max(0.08, opacity)})`,
+            backdropFilter: 'blur(28px) saturate(190%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(190%)',
           }}
         >
-          {/* Top Floating Horizontal Control Bar (100% Solid & Crisp) */}
+          {/* Top Floating Control Bar */}
           <HeaderBar
             isCollapsed={false}
             onToggleCollapse={() => setIsCollapsed(true)}
@@ -309,19 +372,17 @@ export const App: React.FC = () => {
             onFontSizeChange={handleFontSizeChange}
             wrapLines={wrapLines}
             onToggleWrapLines={() => setWrapLines((prev) => !prev)}
-            onCopyCode={handleCopyCode}
-            copied={copied}
             onDisconnect={handleDisconnect}
           />
 
           {/* Middle Main Content Area */}
-          <div className="flex-1 overflow-hidden flex flex-col relative bg-transparent">
+          <div className="flex-1 overflow-hidden flex flex-col relative bg-transparent font-sans">
             {!permissionGranted ? (
-              <div className="flex-1 overflow-y-auto bg-[#0f172a]">
+              <div className="flex-1 overflow-y-auto bg-transparent">
                 <PermissionGate onPermissionGranted={handlePermissionGranted} />
               </div>
             ) : !isSessionActive ? (
-              <div className="flex-1 overflow-y-auto bg-[#0f172a]">
+              <div className="flex-1 overflow-y-auto bg-transparent">
                 <ConnectionForm
                   onConnect={handleConnect}
                   isConnecting={status.connecting}
@@ -337,54 +398,7 @@ export const App: React.FC = () => {
                   wrapLines={wrapLines}
                   opacity={opacity}
                   onLanguageChange={setLanguage}
-                  onCodeChange={setCode}
                 />
-
-                {/* Bottom Resize & Quick Height Toolbar (100% Solid & Crisp) */}
-                <div
-                  className="px-3 py-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-300 select-none app-no-drag z-20 shadow-md transition-colors duration-150"
-                  style={{
-                    backgroundColor: `rgba(15, 23, 42, ${Math.max(0.85, opacity)})`,
-                  }}
-                >
-                  {/* Left: Quick Height Presets */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="flex items-center gap-1 text-slate-400 font-medium">
-                      <UnfoldVertical className="w-3 h-3 text-slate-300" />
-                      <span>高度预设:</span>
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {[
-                        { label: '紧凑', height: 380 },
-                        { label: '标准', height: 520 },
-                        { label: '加长', height: 720 },
-                        { label: '全高', height: 920 },
-                      ].map((preset) => (
-                        <button
-                          key={preset.height}
-                          onClick={() => handleQuickHeight(preset.height)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-mono transition active:scale-95 border ${
-                            Math.abs(windowDimension.height - preset.height) < 40
-                              ? 'bg-blue-600/40 text-blue-200 border-blue-400/50 font-semibold'
-                              : 'bg-slate-800 text-slate-300 border-slate-700 hover:text-white hover:bg-slate-700'
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Right: Drag to resize hint and corner grip */}
-                  <div
-                    onMouseDown={(e) => handleResizeStart(e, 'corner')}
-                    title="按住拖拽任意调整窗口宽度与高度"
-                    className="flex items-center gap-1 text-slate-300 hover:text-blue-300 cursor-nwse-resize px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition border border-slate-700 hover:border-blue-500/40 active:scale-95"
-                  >
-                    <span className="text-[9px] font-mono">{windowDimension.width}×{windowDimension.height}</span>
-                    <MoveDiagonal className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-                </div>
               </div>
             )}
           </div>

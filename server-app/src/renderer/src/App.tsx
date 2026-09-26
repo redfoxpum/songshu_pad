@@ -13,6 +13,7 @@ import {
   triggerCapture,
   deleteScreenshot,
   closeRoom,
+  bulkCloseRooms,
   reopenRoom,
   fetchAgentStatus,
 } from './utils/api';
@@ -24,6 +25,7 @@ import { ActionBar } from './components/ActionBar';
 import { ScreenshotGallery } from './components/ScreenshotGallery';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { DeleteRoomModal } from './components/DeleteRoomModal';
+import { BulkCloseModal } from './components/BulkCloseModal';
 import { QRCodeModal } from './components/QRCodeModal';
 import { ImageViewerModal } from './components/ImageViewerModal';
 import { ToastContainer } from './components/Toast';
@@ -58,9 +60,12 @@ export const App: React.FC = () => {
   // Modals & Lightbox
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkTargetRooms, setBulkTargetRooms] = useState<RoomItem[]>([]);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [viewingScreenshot, setViewingScreenshot] = useState<ScreenshotInfo | null>(null);
   const [isClosingRoom, setIsClosingRoom] = useState(false);
+  const [isBulkClosing, setIsBulkClosing] = useState(false);
   const [isReopeningRoom, setIsReopeningRoom] = useState(false);
 
   // Toast System
@@ -245,6 +250,32 @@ export const App: React.FC = () => {
     }
   };
 
+  // Open Bulk Close Modal
+  const handleOpenBulkModal = (targetRooms: RoomItem[]) => {
+    setBulkTargetRooms(targetRooms);
+    setIsBulkModalOpen(true);
+  };
+
+  // Confirm Bulk Close
+  const handleConfirmBulkClose = async (roomIds: string[]) => {
+    setIsBulkClosing(true);
+    try {
+      const res = await bulkCloseRooms(roomIds);
+      if (res.success && res.closedCount > 0) {
+        addToast(`🔒 已成功批量关闭 ${res.closedCount} 个面试房间（历史数据完整保留）`, 'success');
+        setIsBulkModalOpen(false);
+        setBulkTargetRooms([]);
+        await loadRooms();
+      } else {
+        addToast(`批量关闭失败: ${res.message || '未知错误'}`, 'error');
+      }
+    } catch (err: any) {
+      addToast(`批量关闭异常: ${err.message}`, 'error');
+    } finally {
+      setIsBulkClosing(false);
+    }
+  };
+
   // Selected Room Object
   const currentRoom = rooms.find((r) => r.id === selectedRoomId);
 
@@ -270,6 +301,7 @@ export const App: React.FC = () => {
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onRefresh={loadRooms}
           isLoading={isLoadingRooms}
+          onOpenBulkClose={handleOpenBulkModal}
         />
 
         {/* Right Dashboard Area */}
@@ -357,6 +389,14 @@ export const App: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmCloseRoom}
         isProcessing={isClosingRoom}
+      />
+
+      <BulkCloseModal
+        isOpen={isBulkModalOpen}
+        rooms={bulkTargetRooms}
+        onClose={() => setIsBulkModalOpen(false)}
+        onConfirm={handleConfirmBulkClose}
+        isProcessing={isBulkClosing}
       />
 
       <QRCodeModal

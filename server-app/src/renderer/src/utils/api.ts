@@ -126,6 +126,45 @@ export async function closeRoom(roomId: string): Promise<{ success: boolean; mes
   }
 }
 
+export async function bulkCloseRooms(
+  roomIds: string[]
+): Promise<{ success: boolean; closedCount: number; closedIds: string[]; message?: string }> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/rooms/bulk-close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomIds }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP error ${res.status}`);
+    }
+    return {
+      success: data.success ?? true,
+      closedCount: data.closedCount ?? 0,
+      closedIds: data.closedIds ?? [],
+      message: data.message,
+    };
+  } catch (err: any) {
+    // Fallback: iterate over rooms individually
+    let successCount = 0;
+    const closedIds: string[] = [];
+    for (const id of roomIds) {
+      const r = await closeRoom(id);
+      if (r.success) {
+        successCount++;
+        closedIds.push(id);
+      }
+    }
+    return {
+      success: successCount > 0,
+      closedCount: successCount,
+      closedIds,
+      message: err.message,
+    };
+  }
+}
+
 export async function reopenRoom(roomId: string): Promise<{ success: boolean; message?: string }> {
   try {
     const res = await fetch(`${BASE_URL}/api/rooms/${roomId}/reopen`, {

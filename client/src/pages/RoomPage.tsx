@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import {
@@ -79,8 +79,15 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     };
   }, [roomId]);
 
-  // Setup Yjs Doc and WebsocketProvider
-  const { doc, provider, yText, roomMeta } = useMemo(() => {
+  // Setup Yjs Doc and WebsocketProvider with proper lifecycle management
+  const [yjsState, setYjsState] = useState<{
+    doc: Y.Doc;
+    provider: WebsocketProvider;
+    yText: Y.Text;
+    roomMeta: Y.Map<any>;
+  } | null>(null);
+
+  useEffect(() => {
     const ydoc = new Y.Doc();
 
     // Determine WebSocket endpoint
@@ -88,20 +95,29 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
-    const wsProvider = new WebsocketProvider(wsUrl, roomId, ydoc);
+    const wsProvider = new WebsocketProvider(wsUrl, roomId, ydoc, { disableBc: true });
     const text = ydoc.getText('codemirror');
     const meta = ydoc.getMap<any>('room-meta');
 
-    return {
+    setYjsState({
       doc: ydoc,
       provider: wsProvider,
       yText: text,
       roomMeta: meta,
+    });
+
+    return () => {
+      wsProvider.destroy();
+      ydoc.destroy();
+      setYjsState(null);
     };
   }, [roomId]);
 
   // Handle awareness & user profile
   useEffect(() => {
+    if (!yjsState) return;
+    const { provider } = yjsState;
+
     // Set current user awareness
     provider.awareness.setLocalStateField('user', currentUser);
 
@@ -131,10 +147,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     return () => {
       provider.awareness.off('change', updateParticipants);
     };
-  }, [provider, currentUser]);
+  }, [yjsState, currentUser]);
 
   // Handle provider connection status
   useEffect(() => {
+    if (!yjsState) return;
+    const { provider } = yjsState;
+
     const handleStatus = (event: { status: ConnectionStatus }) => {
       setConnectionStatus(event.status);
       if (event.status === 'connected') {
@@ -149,10 +168,13 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     return () => {
       provider.off('status', handleStatus);
     };
-  }, [provider, onShowToast]);
+  }, [yjsState, onShowToast]);
 
   // Handle room metadata synchronization
   useEffect(() => {
+    if (!yjsState) return;
+    const { roomMeta } = yjsState;
+
     const handleMetaUpdate = () => {
       const currentLang = roomMeta.get('language') as SupportedLanguage;
       if (currentLang && ['python', 'cpp', 'java'].includes(currentLang)) {
@@ -179,15 +201,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     return () => {
       roomMeta.unobserve(handleMetaUpdate);
     };
-  }, [roomMeta, roomId]);
-
-  // Cleanup provider and doc on unmount
-  useEffect(() => {
-    return () => {
-      provider.destroy();
-      doc.destroy();
-    };
-  }, [provider, doc]);
+  }, [yjsState, roomId]);
 
   // Save theme
   const toggleTheme = () => {
@@ -198,9 +212,11 @@ export const RoomPage: React.FC<RoomPageProps> = ({
 
   // Language change handler (syncs over CRDT to all users)
   const handleLanguageChange = (newLang: SupportedLanguage) => {
-    doc.transact(() => {
-      roomMeta.set('language', newLang);
-    });
+    if (yjsState) {
+      yjsState.doc.transact(() => {
+        yjsState.roomMeta.set('language', newLang);
+      });
+    }
     setLanguage(newLang);
     const langConfig = LANGUAGES[newLang];
     onShowToast('info', `Switched room language to ${langConfig.name}`);
@@ -210,20 +226,24 @@ export const RoomPage: React.FC<RoomPageProps> = ({
   const handleSaveProfile = (profile: UserProfile) => {
     saveStoredUser(profile);
     setCurrentUser(profile);
-    provider.awareness.setLocalStateField('user', profile);
+    if (yjsState) {
+      yjsState.provider.awareness.setLocalStateField('user', profile);
+    }
     onShowToast('success', 'Profile updated successfully.');
   };
 
+  const currentCodeRef = useRef<string>('');
+
   // Copy all code
   const handleCopyAllCode = useCallback(() => {
-    const code = yText.toString();
+    const code = currentCodeRef.current;
     navigator.clipboard.writeText(code);
     onShowToast('success', 'Full code copied to clipboard!');
-  }, [yText, onShowToast]);
+  }, [onShowToast]);
 
   // Export code as file
   const handleExportCode = useCallback(() => {
-    const code = yText.toString();
+    const code = currentCodeRef.current;
     const langConfig = LANGUAGES[language] || LANGUAGES.python;
     const filename = `${roomName || roomId}${langConfig.extension}`;
     const blob = new Blob([code], { type: `${langConfig.mime};charset=utf-8` });
@@ -236,7 +256,7 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     onShowToast('success', `Exported ${filename}`);
-  }, [yText, language, roomName, roomId, onShowToast]);
+  }, [language, roomName, roomId, onShowToast]);
 
   if (isRoomClosed) {
     return (
@@ -301,10 +321,18 @@ export const RoomPage: React.FC<RoomPageProps> = ({
       {/* Editor Main Canvas */}
       <main className="flex-1 w-full h-full relative overflow-hidden">
         <CodeEditor
-          yText={yText}
-          provider={provider}
+          key={roomId}
+          roomId={roomId}
           language={language}
           theme={theme}
+          currentUser={currentUser}
+          onLanguageChange={handleLanguageChange}
+          onCodeChange={(code) => {
+            currentCodeRef.current = code;
+          }}
+          onSyncStatus={(status) => {
+            setConnectionStatus(status === 'error' ? 'disconnected' : 'connected');
+          }}
         />
       </main>
 

@@ -68,8 +68,12 @@ export async function captureFullScreen(targetQuality: number = 85): Promise<Scr
     });
 
     if (sources && sources.length > 0) {
-      // Find primary screen source or default to first
-      let primarySource = sources.find((s) => s.display_id === String(primaryDisplay.id)) || sources[0];
+      // Find primary screen source across Windows / macOS formats
+      let primarySource =
+        sources.find((s) => s.display_id === String(primaryDisplay.id)) ||
+        sources.find((s) => s.id.startsWith('screen:0') || s.name.toLowerCase().includes('entire') || s.name.toLowerCase().includes('screen 1')) ||
+        sources[0];
+
       const thumbnail: NativeImage = primarySource.thumbnail;
 
       if (!thumbnail.isEmpty()) {

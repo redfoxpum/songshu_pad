@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { ConnectionConfig, ElectronAPI, ScreenPermissionResult, AgentStatus, CaptureResult } from '../types/ipc.js';
 
 const api: ElectronAPI = {
+  // Platform metadata
+  platform: process.platform,
+  arch: process.arch,
+  isMac: process.platform === 'darwin',
+  isWindows: process.platform === 'win32',
+
   // Screen recording permission
   checkScreenPermission: (): Promise<ScreenPermissionResult> => {
     return ipcRenderer.invoke('check-screen-permission');
@@ -34,6 +40,12 @@ const api: ElectronAPI = {
   setClickThrough: (enabled: boolean): Promise<boolean> => {
     return ipcRenderer.invoke('set-click-through', enabled);
   },
+  toggleWindowVisibility: (): Promise<boolean> => {
+    return ipcRenderer.invoke('toggle-window-visibility');
+  },
+  adjustWindowOpacity: (delta: number): Promise<void> => {
+    return ipcRenderer.invoke('adjust-window-opacity', delta);
+  },
   setWindowOpacity: (opacity: number): Promise<void> => {
     return ipcRenderer.invoke('set-window-opacity', opacity);
   },
@@ -51,6 +63,18 @@ const api: ElectronAPI = {
   },
   closeWindow: (): Promise<void> => {
     return ipcRenderer.invoke('close-window');
+  },
+
+  // Code Synchronization REST APIs
+  fetchRoomCode: (serverUrl: string, roomId: string, sinceVersion?: number, waitMs?: number) => {
+    return ipcRenderer.invoke('fetch-room-code', { serverUrl, roomId, sinceVersion, waitMs });
+  },
+  pushRoomCode: (
+    serverUrl: string,
+    roomId: string,
+    payload: { code: string; language?: string; clientId?: string; author?: string }
+  ) => {
+    return ipcRenderer.invoke('push-room-code', { serverUrl, roomId, payload });
   },
 
   // Event Listeners from Main
@@ -83,6 +107,22 @@ const api: ElectronAPI = {
     ipcRenderer.on('agent:capture-completed', handler);
     return () => {
       ipcRenderer.removeListener('agent:capture-completed', handler);
+    };
+  },
+
+  onAdjustOpacity: (callback: (delta: number) => void) => {
+    const handler = (_event: any, delta: number) => callback(delta);
+    ipcRenderer.on('window:adjust-opacity', handler);
+    return () => {
+      ipcRenderer.removeListener('window:adjust-opacity', handler);
+    };
+  },
+
+  onVisibilityChanged: (callback: (visible: boolean) => void) => {
+    const handler = (_event: any, visible: boolean) => callback(visible);
+    ipcRenderer.on('window:visibility-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('window:visibility-changed', handler);
     };
   },
 };

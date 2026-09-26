@@ -19,71 +19,50 @@ import {
   closeRoomMeta,
   reopenRoomMeta,
 } from './persistence.js';
-import { disconnectRoom } from './websocket.js';
+import { getYDoc, getAllLoadedDocs, disconnectRoom } from './websocket.js';
 
 export class RoomManager {
-  private docs = new Map<string, Y.Doc>();
-
   constructor() {
     ensureDataDir();
   }
 
   public getOrCreateDoc(roomId: string, initialLanguage: SupportedLanguage = 'python', initialName?: string): Y.Doc {
     const sanitized = sanitizeRoomId(roomId);
-    let doc = this.docs.get(sanitized);
-    if (doc) {
-      return doc;
-    }
-
-    // Ensure room and screenshots directory exist
     ensureRoomDir(sanitized);
 
-    doc = new Y.Doc();
-    const loaded = loadRoomState(sanitized, doc);
-
+    const doc = getYDoc(sanitized);
     const roomMeta = doc.getMap<any>('room-meta');
     const yText = doc.getText('codemirror');
 
-    if (!loaded) {
-      // Initialize new room content and metadata
-      doc.transact(() => {
+    doc.transact(() => {
+      if (initialLanguage) {
+        roomMeta.set('language', initialLanguage);
+      }
+      if (yText.length === 0) {
         const template = DEFAULT_TEMPLATES[initialLanguage] || DEFAULT_TEMPLATES.python;
-        if (yText.length === 0) {
-          yText.insert(0, template);
-        }
-        if (!roomMeta.has('language')) {
-          roomMeta.set('language', initialLanguage);
-        }
-        if (!roomMeta.has('id')) {
-          roomMeta.set('id', sanitized);
-        }
-        if (!roomMeta.has('name')) {
-          roomMeta.set('name', initialName || sanitized);
-        }
-        if (!roomMeta.has('createdAt')) {
-          roomMeta.set('createdAt', Date.now());
-        }
-        roomMeta.set('lastActiveAt', Date.now());
-        roomMeta.set('status', 'active');
-      });
-
-      // Save initial state to disk
-      saveRoomState(sanitized, doc);
-    }
-
-    // Attach persistence update listener
-    doc.on('update', () => {
-      debounceSaveRoomState(sanitized, doc!);
+        yText.insert(0, template);
+      }
+      if (!roomMeta.has('id')) {
+        roomMeta.set('id', sanitized);
+      }
+      if (!roomMeta.has('name')) {
+        roomMeta.set('name', initialName || sanitized);
+      }
+      if (!roomMeta.has('createdAt')) {
+        roomMeta.set('createdAt', Date.now());
+      }
+      roomMeta.set('lastActiveAt', Date.now());
+      roomMeta.set('status', 'active');
     });
 
-    this.docs.set(sanitized, doc);
+    saveRoomState(sanitized, doc);
     return doc;
   }
 
   public createRoom(language: SupportedLanguage = 'python', customName?: string): RoomMetadata {
     let roomId = generateRoomId();
     let attempts = 0;
-    while ((this.docs.has(roomId) || roomExists(roomId)) && attempts < 10) {
+    while ((getAllLoadedDocs().has(roomId) || roomExists(roomId)) && attempts < 10) {
       roomId = generateRoomId();
       attempts++;
     }
@@ -103,7 +82,8 @@ export class RoomManager {
 
   public getRoomInfo(roomId: string, onlineClients = 0, includeClosed = false): RoomInfoResponse | null {
     const sanitized = sanitizeRoomId(roomId);
-    if (!this.docs.has(sanitized) && !roomExists(sanitized)) {
+    const loadedDocs = getAllLoadedDocs();
+    if (!loadedDocs.has(sanitized) && !roomExists(sanitized)) {
       return null;
     }
 
@@ -131,8 +111,8 @@ export class RoomManager {
     let createdAt = diskMeta?.createdAt || Date.now();
     let lastActiveAt = diskMeta?.lastActiveAt || Date.now();
 
-    if (this.docs.has(sanitized)) {
-      const doc = this.docs.get(sanitized)!;
+    if (loadedDocs.has(sanitized)) {
+      const doc = loadedDocs.get(sanitized)!;
       const meta = doc.getMap<any>('room-meta');
       language = (meta.get('language') as SupportedLanguage) || language;
       name = meta.get('name') || name;
@@ -155,7 +135,8 @@ export class RoomManager {
   }
 
   public getAllRooms(onlineClientsResolver?: (roomId: string) => number, includeClosed = true): RoomListItem[] {
-    const allIds = new Set<string>([...listAllRoomIds(), ...this.docs.keys()]);
+    const loadedDocs = getAllLoadedDocs();
+    const allIds = new Set<string>([...listAllRoomIds(), ...loadedDocs.keys()]);
     const results: RoomListItem[] = [];
 
     for (const roomId of allIds) {
@@ -163,7 +144,7 @@ export class RoomManager {
       if (!sanitized) continue;
 
       let meta: RoomMetadata | null = null;
-      const loadedDoc = this.docs.get(sanitized);
+      const loadedDoc = loadedDocs.get(sanitized);
       if (loadedDoc) {
         const docMeta = loadedDoc.getMap<any>('room-meta');
         meta = {
@@ -222,19 +203,50 @@ export class RoomManager {
 
   public closeRoom(roomId: string): boolean {
     const sanitized = sanitizeRoomId(roomId);
-    if (!this.docs.has(sanitized) && !roomExists(sanitized)) {
+    const loadedDocs = getAllLoadedDocs();
+    if (!loadedDocs.has(sanitized) && !roomExists(sanitized)) {
       return false;
     }
 
-    const doc = this.docs.get(sanitized);
+    const doc = loadedDocs.get(sanitized);
     if (doc) {
       saveRoomState(sanitized, doc);
-      this.docs.delete(sanitized);
     }
 
     closeRoomMeta(sanitized);
     disconnectRoom(sanitized);
     return true;
+  }
+
+  public bulkCloseRooms(roomIds: string[]): {
+    success: boolean;
+    closedCount: number;
+    closedIds: string[];
+    failedIds: string[];
+  } {
+    const closedIds: string[] = [];
+    const failedIds: string[] = [];
+
+    for (const rawId of roomIds) {
+      const id = sanitizeRoomId(rawId);
+      if (!id) {
+        failedIds.push(rawId);
+        continue;
+      }
+      const ok = this.closeRoom(id);
+      if (ok) {
+        closedIds.push(id);
+      } else {
+        failedIds.push(id);
+      }
+    }
+
+    return {
+      success: true,
+      closedCount: closedIds.length,
+      closedIds,
+      failedIds,
+    };
   }
 
   public reopenRoom(roomId: string): boolean {
@@ -255,7 +267,7 @@ export class RoomManager {
   }
 
   public getAllDocs(): Map<string, Y.Doc> {
-    return this.docs;
+    return getAllLoadedDocs();
   }
 }
 

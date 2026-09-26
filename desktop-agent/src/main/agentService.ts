@@ -1,7 +1,21 @@
 import WebSocket from 'ws';
+import os from 'os';
 import { AgentStatus, CaptureResult, ConnectionConfig } from '../types/ipc.js';
 import { captureFullScreen } from './capture.js';
 import { getClickThroughState } from './shortcuts.js';
+
+export function getDeviceName(): string {
+  const osType =
+    process.platform === 'win32'
+      ? 'Windows'
+      : process.platform === 'darwin'
+      ? process.arch === 'arm64'
+        ? 'macOS (Apple Silicon)'
+        : 'macOS (Intel)'
+      : 'Linux';
+  const hostname = os.hostname() || 'Desktop';
+  return `${osType} - ${hostname}`;
+}
 
 export class AgentService {
   private ws: WebSocket | null = null;
@@ -77,7 +91,17 @@ export class AgentService {
       this.disconnectInternal();
     }
 
-    this.serverUrl = config.serverUrl.trim().replace(/\/+$/, '');
+    try {
+      let urlStr = config.serverUrl.trim();
+      if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+        urlStr = 'http://' + urlStr;
+      }
+      const parsed = new URL(urlStr);
+      this.serverUrl = `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      this.serverUrl = config.serverUrl.trim().replace(/\/+$/, '');
+    }
+
     this.roomId = config.roomId.trim().replace(/[^a-zA-Z0-9_-]/g, '');
 
     if (!this.roomId) {
@@ -96,8 +120,9 @@ export class AgentService {
 
     try {
       // Build WebSocket URL with clientId query param
-      let wsBase = this.serverUrl.replace(/^http/, 'ws');
-      const wsUrl = `${wsBase}/ws/agent?room=${encodeURIComponent(this.roomId)}&clientId=${encodeURIComponent(this.clientId)}`;
+      const wsProtocol = this.serverUrl.startsWith('https') ? 'wss:' : 'ws:';
+      const host = this.serverUrl.replace(/^https?:\/\//, '').split('/')[0];
+      const wsUrl = `${wsProtocol}//${host}/ws/agent?room=${encodeURIComponent(this.roomId)}&clientId=${encodeURIComponent(this.clientId)}`;
 
       console.log(`[AgentService] Connecting to WebSocket (${isAutoRetry ? 'AutoRetry' : 'Initial'}): ${wsUrl}`);
       this.ws = new WebSocket(wsUrl);
@@ -138,9 +163,10 @@ export class AgentService {
               type: 'AGENT_REGISTER',
               clientType: 'desktop-agent',
               clientId: this.clientId,
-              deviceName: 'macOS Desktop Agent',
+              deviceName: getDeviceName(),
               hasScreenPermission: true,
               platform: process.platform,
+              arch: process.arch,
               roomId: this.roomId,
               timestamp: Date.now(),
             })
@@ -231,7 +257,9 @@ export class AgentService {
           type: 'HEARTBEAT',
           clientId: this.clientId,
           roomId: this.roomId,
-          deviceName: 'macOS Desktop Agent',
+          deviceName: getDeviceName(),
+          platform: process.platform,
+          arch: process.arch,
           hasScreenPermission: true,
           timestamp: Date.now(),
         })
@@ -409,7 +437,7 @@ export class AgentService {
         triggerType: 'initial',
         timestamp,
         clientId: this.clientId,
-        deviceName: 'macOS Desktop Agent',
+        deviceName: getDeviceName(),
       });
 
       this.lastCaptureTime = timestamp;
@@ -488,7 +516,7 @@ export class AgentService {
           triggerType,
           timestamp,
           clientId: this.clientId,
-          deviceName: 'macOS Desktop Agent',
+          deviceName: getDeviceName(),
         });
       }
 
@@ -518,7 +546,7 @@ export class AgentService {
             triggerType: 'ondemand',
             timestamp,
             size: captureData.buffer.length,
-            deviceName: 'macOS Desktop Agent',
+            deviceName: getDeviceName(),
             success: true,
             url: uploadResultUrl,
           })
