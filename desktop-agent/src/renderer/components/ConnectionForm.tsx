@@ -30,31 +30,49 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   isConnecting,
   error: externalError,
 }) => {
-  const [connectKey, setConnectKey] = useState('');
-  const [serverUrl, setServerUrl] = useState('http://localhost:3000');
-  const [lastConnection, setLastConnection] = useState<string | null>(null);
+  const [lastConnection, setLastConnection] = useState<string | null>(() => {
+    try {
+      return (
+        localStorage.getItem(STORAGE_KEY_LAST) ||
+        localStorage.getItem(STORAGE_KEY_TOKEN) ||
+        localStorage.getItem(STORAGE_KEY_ROOM) ||
+        null
+      );
+    } catch {
+      return null;
+    }
+  });
+
+  const [connectKey, setConnectKey] = useState<string>(() => {
+    try {
+      return (
+        localStorage.getItem(STORAGE_KEY_LAST) ||
+        localStorage.getItem(STORAGE_KEY_TOKEN) ||
+        localStorage.getItem(STORAGE_KEY_ROOM) ||
+        ''
+      );
+    } catch {
+      return '';
+    }
+  });
+
+  const [serverUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_SERVER) || 'http://localhost:3000';
+    } catch {
+      return 'http://localhost:3000';
+    }
+  });
+
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      const savedServer = localStorage.getItem(STORAGE_KEY_SERVER);
-      if (savedServer) setServerUrl(savedServer);
-
-      const savedLast =
-        localStorage.getItem(STORAGE_KEY_LAST) ||
-        localStorage.getItem(STORAGE_KEY_TOKEN) ||
-        localStorage.getItem(STORAGE_KEY_ROOM);
-
-      if (savedLast) {
-        setConnectKey(savedLast);
-        setLastConnection(savedLast);
-      }
-
       // Clean up legacy multi-item recents so they do not persist
       localStorage.removeItem(STORAGE_KEY_RECENTS);
       localStorage.removeItem('squirrel_agent_recent_rooms');
     } catch (e) {
-      console.warn('Failed to load connection storage:', e);
+      console.warn('Failed to clean legacy storage:', e);
     }
   }, []);
 
