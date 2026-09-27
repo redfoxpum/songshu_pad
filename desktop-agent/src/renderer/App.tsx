@@ -275,19 +275,10 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showOpacityToast, showScrollToast]);
 
-  const isInvalidRoom = Boolean(
-    status.lastError &&
-      (status.lastError.toLowerCase().includes('不存在') ||
-        status.lastError.toLowerCase().includes('无效') ||
-        status.lastError.toLowerCase().includes('不合法') ||
-        status.lastError.toLowerCase().includes('not found') ||
-        status.lastError.toLowerCase().includes('关闭') ||
-        status.lastError.toLowerCase().includes('closed'))
-  );
-
   const isSessionActive =
-    !isInvalidRoom &&
-    (status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId)));
+    !status.lastError &&
+    Boolean(status.roomId) &&
+    (status.connected || Boolean(status.reconnecting));
 
   // Adjust window size only on major mode changes (collapse/expand/connection), preserving user custom size
   useEffect(() => {

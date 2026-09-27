@@ -32,6 +32,8 @@ export class AgentService {
   private totalCaptures: number = 0;
   private lastError: string | null = null;
   private isCapturing: boolean = false;
+  private pendingConnectResolve: (((res: { success: boolean; error?: string }) => void) | null) = null;
+  private connectTimeoutTimer: NodeJS.Timeout | null = null;
 
   private scheduledTimer: NodeJS.Timeout | null = null;
   private countdownTimer: NodeJS.Timeout | null = null;
@@ -177,36 +179,40 @@ export class AgentService {
       this.ws = new WebSocket(wsUrl);
 
       return new Promise((resolve) => {
-        let hasResolved = false;
-
-        const connectTimeout = setTimeout(() => {
-          if (!hasResolved) {
-            hasResolved = true;
-            this.connecting = false;
-            this.lastError = '连接超时，请检查服务器地址与网络连接';
-            this.emitStatus();
-            if (this.ws) {
-              try {
-                this.ws.close();
-              } catch (e) {}
+        let hasSettled = false;
+        const settleConnect = (res: { success: boolean; error?: string }) => {
+          if (!hasSettled) {
+            hasSettled = true;
+            if (this.connectTimeoutTimer) {
+              clearTimeout(this.connectTimeoutTimer);
+              this.connectTimeoutTimer = null;
             }
-            if (!this.isManualDisconnect) {
-              this.scheduleReconnect();
-            }
-            resolve({ success: false, error: this.lastError });
+            this.pendingConnectResolve = null;
+            resolve(res);
           }
+        };
+
+        this.pendingConnectResolve = settleConnect;
+
+        this.connectTimeoutTimer = setTimeout(() => {
+          console.warn('[AgentService] Connection handshake timed out after 8s');
+          this.connecting = false;
+          this.connected = false;
+          this.reconnecting = false;
+          this.roomId = '';
+          this.lastError = '连接超时，请检查协同连接码或网络状态';
+          this.emitStatus();
+          if (this.ws) {
+            try {
+              this.ws.close();
+            } catch (e) {}
+          }
+          settleConnect({ success: false, error: this.lastError });
         }, 8000);
 
         this.ws!.on('open', () => {
-          clearTimeout(connectTimeout);
-          console.log(`[AgentService] WebSocket connected successfully to room ${this.roomId}`);
-          this.connected = true;
-          this.connecting = false;
-          this.reconnecting = false;
-          this.reconnectAttempts = 0;
-          this.lastError = null;
-          
-          // Send handshake registration
+          console.log(`[AgentService] WebSocket TCP open for room ${this.roomId}. Sending AGENT_REGISTER...`);
+          // DO NOT mark connected=true yet! Wait for server REGISTER_ACK!
           this.ws?.send(
             JSON.stringify({
               type: 'AGENT_REGISTER',
@@ -220,15 +226,6 @@ export class AgentService {
               timestamp: Date.now(),
             })
           );
-
-          this.startHeartbeatLoop();
-          this.startScheduledCaptureLoop();
-          this.emitStatus();
-
-          if (!hasResolved) {
-            hasResolved = true;
-            resolve({ success: true });
-          }
         });
 
         this.ws!.on('message', (raw) => {
@@ -246,27 +243,50 @@ export class AgentService {
         });
 
         this.ws!.on('close', (code, reason) => {
-          console.log(`[AgentService] WebSocket closed (code: ${code}, reason: ${reason.toString()})`);
-          this.connected = false;
-          this.connecting = false;
+          if (this.connectTimeoutTimer) {
+            clearTimeout(this.connectTimeoutTimer);
+            this.connectTimeoutTimer = null;
+          }
+
+          const reasonStr = reason ? reason.toString() : '';
+          console.log(
+            `[AgentService] WebSocket closed (code: ${code}, reason: ${reasonStr}, wasConnected: ${this.connected})`
+          );
+
           this.stopScheduledCaptureLoop();
           this.stopHeartbeatLoop();
 
-          const isInvalidOrClosed = code === 4404 || code === 4004 || code === 4000 || (reason && reason.toString().includes('closed'));
-          if (this.isManualDisconnect || isInvalidOrClosed) {
+          const wasFullyConnected = this.connected;
+          this.connected = false;
+          this.connecting = false;
+
+          const isInvalidOrClosed =
+            code === 4404 ||
+            code === 4004 ||
+            code === 4000 ||
+            reasonStr.toLowerCase().includes('closed') ||
+            reasonStr.toLowerCase().includes('not found') ||
+            reasonStr.toLowerCase().includes('exist');
+
+          // If the socket closed before registration succeeded (initial connection failure)
+          // or room was closed/invalid or manual disconnect:
+          if (!wasFullyConnected || this.isManualDisconnect || isInvalidOrClosed) {
             this.reconnecting = false;
             this.roomId = '';
-            this.lastError = this.lastError || '协同连接码无效或房间已关闭，请重新连接';
+            this.clearReconnectTimer();
+            this.lastError =
+              this.lastError ||
+              (isInvalidOrClosed
+                ? '协同连接码无效或房间已关闭，请重新连接'
+                : `连接已关闭 (code: ${code})，请检查协同连接码后重试`);
             this.emitStatus();
+
+            settleConnect({ success: false, error: this.lastError });
           } else {
+            // Only previously established sessions auto-reconnect!
             this.reconnecting = true;
             this.emitStatus();
             this.scheduleReconnect();
-          }
-
-          if (!hasResolved) {
-            hasResolved = true;
-            resolve({ success: false, error: `连接已关闭 (code: ${code})` });
           }
         });
       });
@@ -372,9 +392,17 @@ export class AgentService {
   public disconnect() {
     this.isManualDisconnect = true;
     this.clearReconnectTimer();
+    if (this.connectTimeoutTimer) {
+      clearTimeout(this.connectTimeoutTimer);
+      this.connectTimeoutTimer = null;
+    }
+    if (this.pendingConnectResolve) {
+      this.pendingConnectResolve({ success: false, error: '连接已取消' });
+    }
     this.disconnectInternal();
     this.reconnecting = false;
     this.reconnectAttempts = 0;
+    this.roomId = '';
     this.emitStatus();
   }
 
@@ -383,10 +411,34 @@ export class AgentService {
       const msg = JSON.parse(messageStr);
       console.log('[AgentService] Received message:', msg.type || msg.action || msg);
 
-      // Handle server registration rejection (e.g. invalid room or closed room)
+      // Handle server registration acknowledgment
       if (msg.type === 'REGISTER_ACK') {
-        if (msg.success === false) {
-          console.warn('[AgentService] Registration rejected by server:', msg.message);
+        if (msg.success === true) {
+          console.log(`[AgentService] ✅ Registration approved by server for room ${this.roomId}`);
+          if (this.connectTimeoutTimer) {
+            clearTimeout(this.connectTimeoutTimer);
+            this.connectTimeoutTimer = null;
+          }
+          this.connected = true;
+          this.connecting = false;
+          this.reconnecting = false;
+          this.reconnectAttempts = 0;
+          this.lastError = null;
+
+          this.startHeartbeatLoop();
+          this.startScheduledCaptureLoop();
+          this.emitStatus();
+
+          if (this.pendingConnectResolve) {
+            this.pendingConnectResolve({ success: true });
+          }
+          return;
+        } else {
+          console.warn('[AgentService] ❌ Registration rejected by server:', msg.message);
+          if (this.connectTimeoutTimer) {
+            clearTimeout(this.connectTimeoutTimer);
+            this.connectTimeoutTimer = null;
+          }
           this.isManualDisconnect = true;
           this.connected = false;
           this.connecting = false;
@@ -398,6 +450,9 @@ export class AgentService {
             try {
               this.ws.close(4404, 'Registration rejected');
             } catch {}
+          }
+          if (this.pendingConnectResolve) {
+            this.pendingConnectResolve({ success: false, error: this.lastError });
           }
           return;
         }
