@@ -70,9 +70,18 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       return;
     }
 
+    // Check if user entered an sqp_ token that is invalid/corrupted
+    if (trimmed.toLowerCase().startsWith('sqp_')) {
+      const decoded = decodeConnectionToken(trimmed, serverUrl);
+      if (!decoded || !decoded.roomId) {
+        setLocalError('协同连接码无效或已损坏，请重新复制有效连接码');
+        return;
+      }
+    }
+
     const decoded = decodeConnectionToken(trimmed, serverUrl);
-    if (!decoded || !decoded.roomId) {
-      setLocalError('无法识别此连接码，请检查输入是否完整');
+    if (!decoded || !decoded.roomId || decoded.roomId.length < 2) {
+      setLocalError('协同连接码或房间号不合法，请检查输入是否完整正确');
       return;
     }
 

@@ -203,6 +203,16 @@ apiRouter.get(['/rooms/:roomId/code', '/rooms/:id/code'], async (req: Request, r
       return res.status(400).json({ error: 'Invalid room ID' });
     }
 
+    const info = roomManager.getRoomInfo(roomId);
+    if (!info || info.status === 'closed') {
+      return res.status(404).json({
+        success: false,
+        error: info?.status === 'closed' ? 'Room has been closed by host' : 'Room not found',
+        notFound: true,
+        isClosed: info?.status === 'closed',
+      });
+    }
+
     const sinceVersion = parseInt((req.query.sinceVersion as string) || '-1', 10);
     const waitMs = parseInt((req.query.waitMs as string) || '0', 10);
 
@@ -225,6 +235,16 @@ apiRouter.post(['/rooms/:roomId/code', '/rooms/:id/code'], (req: Request, res: R
     const roomId = sanitizeRoomId(req.params.roomId || req.params.id || '');
     if (!roomId) {
       return res.status(400).json({ error: 'Invalid room ID' });
+    }
+
+    const info = roomManager.getRoomInfo(roomId);
+    if (!info || info.status === 'closed') {
+      return res.status(404).json({
+        success: false,
+        error: info?.status === 'closed' ? 'Room has been closed by host' : 'Room not found',
+        notFound: true,
+        isClosed: info?.status === 'closed',
+      });
     }
 
     const { code, language, clientId, author } = req.body || {};

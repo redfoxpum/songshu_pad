@@ -104,8 +104,57 @@ export class AgentService {
 
     this.roomId = config.roomId.trim().replace(/[^a-zA-Z0-9_-]/g, '');
 
-    if (!this.roomId) {
-      return { success: false, error: 'Room ID 不能为空' };
+    if (!this.roomId || this.roomId.length < 2) {
+      this.connected = false;
+      this.connecting = false;
+      this.reconnecting = false;
+      this.roomId = '';
+      this.lastError = '协同连接码无效或房间编号不合法';
+      this.emitStatus();
+      return { success: false, error: this.lastError };
+    }
+
+    // Preflight validation: verify room existence on the server before connecting WebSocket
+    if (!isAutoRetry) {
+      try {
+        const checkUrl = `${this.serverUrl}/api/rooms/${encodeURIComponent(this.roomId)}`;
+        console.log(`[AgentService] Preflight checking room existence: ${checkUrl}`);
+        const checkRes = await fetch(checkUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(4000),
+        });
+
+        if (checkRes.status === 404) {
+          const errData = (await checkRes.json().catch(() => ({}))) as any;
+          const errorMsg = errData.isClosed
+            ? '该协同房间已被房主关闭，无法加入'
+            : '协同连接码无效或房间不存在，请确认后重新输入';
+          console.warn(`[AgentService] Room preflight check rejected (404): ${errorMsg}`);
+          this.isManualDisconnect = true;
+          this.connected = false;
+          this.connecting = false;
+          this.reconnecting = false;
+          this.roomId = '';
+          this.lastError = errorMsg;
+          this.emitStatus();
+          return { success: false, error: errorMsg };
+        } else if (!checkRes.ok && checkRes.status !== 500 && checkRes.status !== 502) {
+          const errData = (await checkRes.json().catch(() => ({}))) as any;
+          const errorMsg = errData.error || `连接失败 (HTTP ${checkRes.status})`;
+          console.warn(`[AgentService] Room preflight check failed: ${errorMsg}`);
+          this.isManualDisconnect = true;
+          this.connected = false;
+          this.connecting = false;
+          this.reconnecting = false;
+          this.roomId = '';
+          this.lastError = errorMsg;
+          this.emitStatus();
+          return { success: false, error: errorMsg };
+        }
+      } catch (fetchErr: any) {
+        console.warn('[AgentService] Preflight check network warning:', fetchErr.message);
+      }
     }
 
     if (isAutoRetry) {
@@ -203,8 +252,11 @@ export class AgentService {
           this.stopScheduledCaptureLoop();
           this.stopHeartbeatLoop();
 
-          if (this.isManualDisconnect) {
+          const isInvalidOrClosed = code === 4404 || code === 4004 || code === 4000 || (reason && reason.toString().includes('closed'));
+          if (this.isManualDisconnect || isInvalidOrClosed) {
             this.reconnecting = false;
+            this.roomId = '';
+            this.lastError = this.lastError || '协同连接码无效或房间已关闭，请重新连接';
             this.emitStatus();
           } else {
             this.reconnecting = true;
@@ -330,6 +382,26 @@ export class AgentService {
     try {
       const msg = JSON.parse(messageStr);
       console.log('[AgentService] Received message:', msg.type || msg.action || msg);
+
+      // Handle server registration rejection (e.g. invalid room or closed room)
+      if (msg.type === 'REGISTER_ACK') {
+        if (msg.success === false) {
+          console.warn('[AgentService] Registration rejected by server:', msg.message);
+          this.isManualDisconnect = true;
+          this.connected = false;
+          this.connecting = false;
+          this.reconnecting = false;
+          this.roomId = '';
+          this.lastError = msg.message || '协同连接码无效或已被房主关闭';
+          this.emitStatus();
+          if (this.ws) {
+            try {
+              this.ws.close(4404, 'Registration rejected');
+            } catch {}
+          }
+          return;
+        }
+      }
 
       // Support various command formats: type='CAPTURE_NOW', action='capture', event='CAPTURE_NOW', type='COMMAND_SCREENSHOT'
       const isCaptureNow =

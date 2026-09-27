@@ -25,6 +25,7 @@ interface PadViewerProps {
   opacity?: number;
   onLanguageChange?: (lang: string) => void;
   onCodeChange?: (code: string) => void;
+  onRoomInvalid?: (errorMsg: string) => void;
 }
 
 export const transparentHighContrastStyle = HighlightStyle.define([
@@ -115,6 +116,7 @@ export const PadViewer: React.FC<PadViewerProps> = ({
   opacity = 0.35,
   onLanguageChange,
   onCodeChange,
+  onRoomInvalid,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -145,7 +147,10 @@ export const PadViewer: React.FC<PadViewerProps> = ({
     const qs = params.toString();
     if (qs) url += `?${qs}`;
     const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      return { success: false, notFound: res.status === 404, error: errJson.error || `HTTP ${res.status}` };
+    }
     return await res.json();
   };
 
@@ -193,6 +198,12 @@ export const PadViewer: React.FC<PadViewerProps> = ({
 
       try {
         const data = await fetchCodeApi();
+        if (data && (data.notFound || data.isClosed || (data.error && (data.error.includes('not found') || data.error.includes('closed') || data.error.includes('不存在') || data.error.includes('关闭'))))) {
+          const msg = data.isClosed ? '该协同房间已关闭或被房主解散' : '协同连接码无效或房间不存在';
+          console.warn('[PadViewer] Room invalid, returning to connection page:', msg);
+          onRoomInvalid?.(msg);
+          return;
+        }
         if (data && (data.code !== undefined || data.success)) {
           initialCode = data.code || '';
           initialVersion = data.version || 1;
@@ -352,6 +363,10 @@ export const PadViewer: React.FC<PadViewerProps> = ({
                 setCurrentLanguage(data.language);
                 onLanguageChange?.(data.language);
               }
+            } else if (data && (data.notFound || data.isClosed)) {
+              const msg = data.isClosed ? '该协同房间已被房主关闭' : '协同连接码无效或房间不存在';
+              onRoomInvalid?.(msg);
+              break;
             } else if (!data || !data.success) {
               await new Promise((r) => setTimeout(r, 1000));
             }

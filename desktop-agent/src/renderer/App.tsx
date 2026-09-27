@@ -275,7 +275,19 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showOpacityToast, showScrollToast]);
 
-  const isSessionActive = status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId));
+  const isInvalidRoom = Boolean(
+    status.lastError &&
+      (status.lastError.toLowerCase().includes('不存在') ||
+        status.lastError.toLowerCase().includes('无效') ||
+        status.lastError.toLowerCase().includes('不合法') ||
+        status.lastError.toLowerCase().includes('not found') ||
+        status.lastError.toLowerCase().includes('关闭') ||
+        status.lastError.toLowerCase().includes('closed'))
+  );
+
+  const isSessionActive =
+    !isInvalidRoom &&
+    (status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId)));
 
   // Adjust window size only on major mode changes (collapse/expand/connection), preserving user custom size
   useEffect(() => {
@@ -306,10 +318,32 @@ export const App: React.FC = () => {
       setStatus((prev) => ({ ...prev, connecting: true, lastError: null }));
       const res = await window.electronAPI.connectAgent({ serverUrl, roomId });
       if (!res.success) {
-        setStatus((prev) => ({ ...prev, connecting: false, lastError: res.error || '连接失败' }));
+        setStatus((prev) => ({
+          ...prev,
+          connected: false,
+          connecting: false,
+          reconnecting: false,
+          roomId: '',
+          lastError: res.error || '协同连接码无效或房间不存在，请检查后重新输入',
+        }));
       }
     }
   };
+
+  const handleRoomInvalid = useCallback(async (errorMsg: string) => {
+    console.warn('[Renderer] Room invalid or closed, returning to connection page:', errorMsg);
+    if (window.electronAPI) {
+      await window.electronAPI.disconnectAgent();
+    }
+    setStatus((prev) => ({
+      ...prev,
+      connected: false,
+      connecting: false,
+      reconnecting: false,
+      roomId: '',
+      lastError: errorMsg,
+    }));
+  }, []);
 
   const handleDisconnect = async () => {
     if (window.electronAPI) {
@@ -321,6 +355,7 @@ export const App: React.FC = () => {
       connecting: false,
       reconnecting: false,
       roomId: '',
+      lastError: null,
     }));
   };
 
@@ -492,6 +527,7 @@ export const App: React.FC = () => {
                   wrapLines={wrapLines}
                   opacity={opacity}
                   onLanguageChange={setLanguage}
+                  onRoomInvalid={handleRoomInvalid}
                 />
               </div>
             )}

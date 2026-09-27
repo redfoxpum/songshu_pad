@@ -9,7 +9,8 @@ import {
   SubscribeRoomMessage,
   ScreenshotMetadata,
 } from './types.js';
-import { sanitizeRoomId, isRoomClosed } from './persistence.js';
+import { sanitizeRoomId, isRoomClosed, roomExists } from './persistence.js';
+import { getAllLoadedDocs } from './websocket.js';
 
 interface AgentConnection {
   ws: WebSocket;
@@ -127,14 +128,16 @@ export class CommandGateway {
               return;
             }
 
-            if (isRoomClosed(targetRoom)) {
+            const roomDoesExist = roomExists(targetRoom) || getAllLoadedDocs().has(targetRoom);
+            if (!roomDoesExist || isRoomClosed(targetRoom)) {
+              const rejectReason = isRoomClosed(targetRoom) ? 'Room is closed or deleted by host' : 'Room does not exist';
               this.safeSend(ws, {
                 type: 'REGISTER_ACK',
                 success: false,
-                message: 'Room is closed or deleted by host',
+                message: rejectReason,
               });
               try {
-                ws.close(4404, 'Room is closed');
+                ws.close(4404, rejectReason);
               } catch {}
               return;
             }

@@ -115,6 +115,12 @@ export function decodeConnectionToken(
     } catch (e) {
       // Fall through to next checks
     }
+
+    // If the input started with the token prefix "sqp_", it is definitely an encrypted token.
+    // If decryption failed or payload was corrupted, it is an INVALID TOKEN and must NOT fall through!
+    if (isPrefixMatch) {
+      return null;
+    }
   }
 
   // 2. Try parsing as a full URL
@@ -135,7 +141,7 @@ export function decodeConnectionToken(
         roomId = url.searchParams.get('room') || '';
       }
 
-      if (roomId) {
+      if (roomId && roomId.length >= 2) {
         return {
           serverUrl,
           roomId,
@@ -147,14 +153,16 @@ export function decodeConnectionToken(
     }
   }
 
-  // 3. Fallback: treat as pure roomId
-  const sanitizedRoom = raw.replace(/[^a-zA-Z0-9_-]/g, '');
-  if (sanitizedRoom.length > 0) {
-    return {
-      serverUrl: defaultServerUrl.trim().replace(/\/+$/, ''),
-      roomId: sanitizedRoom,
-      isEncryptedToken: false,
-    };
+  // 3. Fallback: treat as pure roomId (must be at least 2 chars, valid room characters, and not a broken token)
+  if (!raw.toLowerCase().startsWith('sqp_')) {
+    const sanitizedRoom = raw.replace(/[^a-zA-Z0-9_-]/g, '');
+    if (sanitizedRoom.length >= 2) {
+      return {
+        serverUrl: defaultServerUrl.trim().replace(/\/+$/, ''),
+        roomId: sanitizedRoom,
+        isEncryptedToken: false,
+      };
+    }
   }
 
   return null;
