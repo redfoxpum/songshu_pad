@@ -6,6 +6,8 @@ import {
   getClickThroughState,
   toggleWindowVisibility,
   adjustOpacity,
+  adjustWindowHeight,
+  scrollPage,
 } from './shortcuts.js';
 import { agentService } from './agentService.js';
 import { ConnectionConfig } from '../types/ipc.js';
@@ -141,6 +143,16 @@ export function setupIpcHandlers(_initialWindow?: BrowserWindow | null) {
   // Opacity adjustment delta (Cmd+Shift+[ / Cmd+Shift+])
   ipcMain.handle('adjust-window-opacity', async (_event, delta: number) => {
     adjustOpacity(delta, getMainWindow());
+  });
+
+  // Window height adjustment (Cmd+Shift++ / Cmd+Shift+-)
+  ipcMain.handle('adjust-window-height', async (_event, delta: number) => {
+    adjustWindowHeight(delta, getMainWindow());
+  });
+
+  // Half-page scroll (Cmd+Shift+Down / Cmd+Shift+Up)
+  ipcMain.handle('scroll-page', async (_event, direction: 'down' | 'up') => {
+    scrollPage(direction, getMainWindow());
   });
 
   // Window properties (Native window stays at full opacity 1.0, transparency is handled in web background)

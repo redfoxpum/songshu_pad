@@ -222,7 +222,52 @@ export const PadViewer: React.FC<PadViewerProps> = ({
         bracketMatching(),
         highlightActiveLine(),
         syntaxHighlighting(transparentHighContrastStyle, { fallback: true }),
-        keymap.of([...defaultKeymap, ...foldKeymap, ...historyKeymap]),
+        keymap.of([
+          {
+            key: 'Mod-Shift-ArrowDown',
+            run: (view) => {
+              const scroller = view.scrollDOM;
+              const halfPage = Math.round((scroller.clientHeight || 300) * 0.5);
+              scroller.scrollBy({ top: halfPage, behavior: 'smooth' });
+              window.dispatchEvent(new CustomEvent('page-scroll-toast', { detail: 'down' }));
+              return true;
+            },
+          },
+          {
+            key: 'Mod-Shift-ArrowUp',
+            run: (view) => {
+              const scroller = view.scrollDOM;
+              const halfPage = Math.round((scroller.clientHeight || 300) * 0.5);
+              scroller.scrollBy({ top: -halfPage, behavior: 'smooth' });
+              window.dispatchEvent(new CustomEvent('page-scroll-toast', { detail: 'up' }));
+              return true;
+            },
+          },
+          {
+            key: 'Mod-Shift-=',
+            run: () => {
+              window.electronAPI?.adjustWindowHeight(60);
+              return true;
+            },
+          },
+          {
+            key: 'Mod-Shift-+',
+            run: () => {
+              window.electronAPI?.adjustWindowHeight(60);
+              return true;
+            },
+          },
+          {
+            key: 'Mod-Shift--',
+            run: () => {
+              window.electronAPI?.adjustWindowHeight(-60);
+              return true;
+            },
+          },
+          ...defaultKeymap,
+          ...foldKeymap,
+          ...historyKeymap,
+        ]),
         langCompartment.current.of(getLanguageExtension(initialLang)),
         themeCompartment.current.of(createEditorTheme(fontSize)),
         wrapCompartment.current.of(wrapLines ? EditorView.lineWrapping : []),
@@ -360,6 +405,25 @@ export const PadViewer: React.FC<PadViewerProps> = ({
       });
     }
   }, [wrapLines]);
+
+  // Listen to external scroll page events (from IPC or App-level hotkeys)
+  useEffect(() => {
+    const handleScrollEvent = (e: any) => {
+      const direction = e.detail?.direction || e.detail;
+      if (!viewRef.current) return;
+      const scroller = viewRef.current.scrollDOM;
+      if (!scroller) return;
+      const clientHeight = scroller.clientHeight || 300;
+      const halfPage = Math.round(clientHeight * 0.5);
+      const delta = direction === 'down' ? halfPage : -halfPage;
+      scroller.scrollBy({ top: delta, behavior: 'smooth' });
+    };
+
+    window.addEventListener('scroll-editor-page', handleScrollEvent);
+    return () => {
+      window.removeEventListener('scroll-editor-page', handleScrollEvent);
+    };
+  }, []);
 
   return (
     <div

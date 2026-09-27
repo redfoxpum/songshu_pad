@@ -73,6 +73,8 @@ export interface ElectronAPI {
   setWindowOpacity: (opacity: number) => Promise<void>;
   setWindowSize: (width: number, height: number) => Promise<void>;
   getWindowSize: () => Promise<[number, number]>;
+  adjustWindowHeight: (delta: number) => Promise<void>;
+  scrollPage: (direction: 'down' | 'up') => Promise<void>;
   setContentProtection: (enabled: boolean) => Promise<boolean>;
   minimizeWindow: () => Promise<void>;
   closeWindow: () => Promise<void>;
@@ -95,5 +97,7 @@ export interface ElectronAPI {
   onOnDemandTriggered: (callback: (data: { requestId: string; timestamp: number }) => void) => () => void;
   onCaptureCompleted: (callback: (result: CaptureResult) => void) => () => void;
   onAdjustOpacity: (callback: (delta: number) => void) => () => void;
+  onAdjustHeight: (callback: (data: { width: number; height: number; delta: number }) => void) => () => void;
+  onScrollPage: (callback: (direction: 'down' | 'up') => void) => () => void;
   onVisibilityChanged: (callback: (visible: boolean) => void) => () => void;
 }

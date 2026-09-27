@@ -138,6 +138,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B' : '⌘⇧B';
   const opacityDecShortcutDisplay = isWindows ? 'Ctrl+Shift+[' : '⌘⇧[';
   const opacityIncShortcutDisplay = isWindows ? 'Ctrl+Shift+]' : '⌘⇧]';
+  const heightIncShortcutDisplay = isWindows ? 'Ctrl+Shift++' : '⌘⇧+';
+  const heightDecShortcutDisplay = isWindows ? 'Ctrl+Shift+-' : '⌘⇧-';
+  const scrollDownShortcutDisplay = isWindows ? 'Ctrl+Shift+↓' : '⌘⇧↓';
+  const scrollUpShortcutDisplay = isWindows ? 'Ctrl+Shift+↑' : '⌘⇧↑';
 
   return (
     <div
@@ -472,6 +476,36 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-cyan-300 font-semibold border border-white/10">
                     {opacityIncShortcutDisplay}
                   </kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">调整窗口高度</span>
+                    <span className="text-[9px] text-slate-400">每次调节 60px，更适长文</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-teal-300 font-semibold border border-white/10" title="增加高度">
+                      {heightIncShortcutDisplay}
+                    </kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-teal-300 font-semibold border border-white/10" title="减少高度">
+                      {heightDecShortcutDisplay}
+                    </kbd>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">上下翻半页</span>
+                    <span className="text-[9px] text-slate-400">平滑快速浏览代码画布</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-blue-300 font-semibold border border-white/10" title="往下翻半页">
+                      {scrollDownShortcutDisplay}
+                    </kbd>
+                    <kbd className="px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px] text-blue-300 font-semibold border border-white/10" title="往上翻半页">
+                      {scrollUpShortcutDisplay}
+                    </kbd>
+                  </div>
                 </div>
               </div>
 

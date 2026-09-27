@@ -1,4 +1,4 @@
-import { globalShortcut, BrowserWindow } from 'electron';
+import { globalShortcut, BrowserWindow, screen } from 'electron';
 import { getMainWindow } from './window.js';
 
 let isClickThroughEnabled = false;
@@ -90,6 +90,41 @@ export function adjustOpacity(delta: number, window?: BrowserWindow | null): voi
   }
 }
 
+/**
+ * Adjust window height via delta.
+ * Delta > 0 increases height, delta < 0 decreases height.
+ */
+export function adjustWindowHeight(delta: number, window?: BrowserWindow | null): number {
+  const win = window || getMainWindow();
+  if (!win || win.isDestroyed()) return 0;
+
+  const [width, height] = win.getSize();
+  let maxHeight = 1600;
+  try {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    maxHeight = Math.min(1600, primaryDisplay.workAreaSize.height - 30);
+  } catch (e) {}
+
+  const minHeight = 180;
+  const newHeight = Math.max(minHeight, Math.min(maxHeight, height + delta));
+
+  win.setSize(width, newHeight, true);
+  win.webContents.send('window:adjust-height', { width, height: newHeight, delta });
+  console.log(`[Shortcut] Height adjusted to ${newHeight} (delta: ${delta > 0 ? '+' : ''}${delta})`);
+  return newHeight;
+}
+
+/**
+ * Scroll editor/content half a page.
+ */
+export function scrollPage(direction: 'down' | 'up', window?: BrowserWindow | null): void {
+  const win = window || getMainWindow();
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('window:scroll-page', direction);
+    console.log(`[Shortcut] Page scroll triggered: ${direction}`);
+  }
+}
+
 export interface ShortcutOptions {
   onToggleClickThrough?: (enabled: boolean) => void;
   onToggleVisibility?: (visible: boolean) => void;
@@ -116,6 +151,10 @@ export function registerGlobalShortcuts(
     'CommandOrControl+Shift+V',
     'CommandOrControl+Shift+[',
     'CommandOrControl+Shift+]',
+    'CommandOrControl+Shift+=',
+    'CommandOrControl+Shift+-',
+    'CommandOrControl+Shift+Down',
+    'CommandOrControl+Shift+Up',
   ];
 
   for (const acc of toUnregister) {
@@ -147,12 +186,50 @@ export function registerGlobalShortcuts(
     adjustOpacity(0.05);
   });
 
+  // 4. Window Height adjustments (Cmd+Shift++ increase height, Cmd+Shift+- decrease height)
+  let registeredPlus = false;
+  try {
+    registeredPlus = globalShortcut.register('CommandOrControl+Shift+=', () => {
+      console.log('[Shortcut] Cmd+Shift++ triggered. Increasing window height...');
+      adjustWindowHeight(60);
+    });
+  } catch (e) {}
+
+  let registeredMinus = false;
+  try {
+    registeredMinus = globalShortcut.register('CommandOrControl+Shift+-', () => {
+      console.log('[Shortcut] Cmd+Shift+- triggered. Decreasing window height...');
+      adjustWindowHeight(-60);
+    });
+  } catch (e) {}
+
+  // 5. Half-page scrolling (Cmd+Shift+Down scroll down half page, Cmd+Shift+Up scroll up half page)
+  let registeredDown = false;
+  try {
+    registeredDown = globalShortcut.register('CommandOrControl+Shift+Down', () => {
+      console.log('[Shortcut] Cmd+Shift+Down triggered. Scrolling down half page...');
+      scrollPage('down');
+    });
+  } catch (e) {}
+
+  let registeredUp = false;
+  try {
+    registeredUp = globalShortcut.register('CommandOrControl+Shift+Up', () => {
+      console.log('[Shortcut] Cmd+Shift+Up triggered. Scrolling up half page...');
+      scrollPage('up');
+    });
+  } catch (e) {}
+
   console.log(
     `[Shortcuts] Registered: ` +
     `Cmd+Shift+X: ${registeredX}, ` +
     `Cmd+Shift+B: ${registeredB}, ` +
     `Cmd+Shift+[: ${registeredBracketLeft}, ` +
-    `Cmd+Shift+]: ${registeredBracketRight}`
+    `Cmd+Shift+]: ${registeredBracketRight}, ` +
+    `Cmd+Shift++: ${registeredPlus}, ` +
+    `Cmd+Shift+-: ${registeredMinus}, ` +
+    `Cmd+Shift+Down: ${registeredDown}, ` +
+    `Cmd+Shift+Up: ${registeredUp}`
   );
 }
 

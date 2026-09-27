@@ -55,6 +55,12 @@ const api: ElectronAPI = {
   getWindowSize: (): Promise<[number, number]> => {
     return ipcRenderer.invoke('get-window-size');
   },
+  adjustWindowHeight: (delta: number): Promise<void> => {
+    return ipcRenderer.invoke('adjust-window-height', delta);
+  },
+  scrollPage: (direction: 'down' | 'up'): Promise<void> => {
+    return ipcRenderer.invoke('scroll-page', direction);
+  },
   setContentProtection: (enabled: boolean): Promise<boolean> => {
     return ipcRenderer.invoke('set-content-protection', enabled);
   },
@@ -115,6 +121,22 @@ const api: ElectronAPI = {
     ipcRenderer.on('window:adjust-opacity', handler);
     return () => {
       ipcRenderer.removeListener('window:adjust-opacity', handler);
+    };
+  },
+
+  onAdjustHeight: (callback: (data: { width: number; height: number; delta: number }) => void) => {
+    const handler = (_event: any, data: { width: number; height: number; delta: number }) => callback(data);
+    ipcRenderer.on('window:adjust-height', handler);
+    return () => {
+      ipcRenderer.removeListener('window:adjust-height', handler);
+    };
+  },
+
+  onScrollPage: (callback: (direction: 'down' | 'up') => void) => {
+    const handler = (_event: any, direction: 'down' | 'up') => callback(direction);
+    ipcRenderer.on('window:scroll-page', handler);
+    return () => {
+      ipcRenderer.removeListener('window:scroll-page', handler);
     };
   },
 

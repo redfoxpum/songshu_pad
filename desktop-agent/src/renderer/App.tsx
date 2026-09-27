@@ -5,7 +5,7 @@ import { PermissionGate } from './components/PermissionGate';
 import { ConnectionForm } from './components/ConnectionForm';
 import { FloatingHUD } from './components/FloatingHUD';
 import { PadViewer } from './components/PadViewer';
-import { Eye } from 'lucide-react';
+import { Eye, ArrowDown, ArrowUp, MoveVertical } from 'lucide-react';
 
 const STORAGE_OPACITY = 'squirrel_agent_opacity';
 const STORAGE_SIZE = 'squirrel_agent_window_size';
@@ -28,6 +28,28 @@ export const App: React.FC = () => {
     toastTimerRef.current = setTimeout(() => {
       setOpacityToast(null);
     }, 1200);
+  }, []);
+
+  const [heightToast, setHeightToast] = useState<{ height: number; delta: number } | null>(null);
+  const heightToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showHeightToast = useCallback((h: number, d: number) => {
+    if (heightToastTimerRef.current) clearTimeout(heightToastTimerRef.current);
+    setHeightToast({ height: h, delta: d });
+    heightToastTimerRef.current = setTimeout(() => {
+      setHeightToast(null);
+    }, 1200);
+  }, []);
+
+  const [scrollToast, setScrollToast] = useState<{ direction: 'down' | 'up' } | null>(null);
+  const scrollToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showScrollToast = useCallback((dir: 'down' | 'up') => {
+    if (scrollToastTimerRef.current) clearTimeout(scrollToastTimerRef.current);
+    setScrollToast({ direction: dir });
+    scrollToastTimerRef.current = setTimeout(() => {
+      setScrollToast(null);
+    }, 1000);
   }, []);
 
   const [isOnDemandActive, setIsOnDemandActive] = useState<boolean>(false);
@@ -163,15 +185,42 @@ export const App: React.FC = () => {
         });
       });
 
+      const unsubAdjustHeight = window.electronAPI.onAdjustHeight?.((data) => {
+        setWindowDimension({ width: data.width, height: data.height });
+        try {
+          localStorage.setItem(STORAGE_SIZE, JSON.stringify({ width: data.width, height: data.height }));
+        } catch (e) {}
+        showHeightToast(data.height, data.delta);
+      });
+
+      const unsubScrollPage = window.electronAPI.onScrollPage?.((direction) => {
+        window.dispatchEvent(new CustomEvent('scroll-editor-page', { detail: { direction } }));
+        showScrollToast(direction);
+      });
+
       return () => {
         unsubStatus();
         unsubClickThrough();
         unsubOnDemand();
         unsubCaptureDone();
         unsubAdjustOpacity();
+        unsubAdjustHeight?.();
+        unsubScrollPage?.();
       };
     }
-  }, [checkPermissions, showOpacityToast]);
+  }, [checkPermissions, showOpacityToast, showHeightToast, showScrollToast]);
+
+  // Listen to in-editor scroll toasts
+  useEffect(() => {
+    const handleScrollToastEvent = (e: any) => {
+      const dir = e.detail?.direction || e.detail;
+      if (dir === 'down' || dir === 'up') {
+        showScrollToast(dir);
+      }
+    };
+    window.addEventListener('page-scroll-toast', handleScrollToastEvent);
+    return () => window.removeEventListener('page-scroll-toast', handleScrollToastEvent);
+  }, [showScrollToast]);
 
   // Handle in-window keyboard shortcuts fallback when window has focus
   useEffect(() => {
@@ -184,6 +233,20 @@ export const App: React.FC = () => {
         } else if (e.code === 'KeyX') {
           e.preventDefault();
           window.electronAPI?.toggleClickThrough();
+        } else if (e.code === 'Equal' || e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          window.electronAPI?.adjustWindowHeight(60);
+        } else if (e.code === 'Minus' || e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          window.electronAPI?.adjustWindowHeight(-60);
+        } else if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('scroll-editor-page', { detail: { direction: 'down' } }));
+          showScrollToast('down');
+        } else if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          window.dispatchEvent(new CustomEvent('scroll-editor-page', { detail: { direction: 'up' } }));
+          showScrollToast('up');
         } else if (e.code === 'BracketLeft' || e.key === '[' || e.key === '{') {
           e.preventDefault();
           setOpacity((prev) => {
@@ -210,7 +273,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showOpacityToast]);
+  }, [showOpacityToast, showScrollToast]);
 
   const isSessionActive = status.connected || (Boolean(status.reconnecting) && Boolean(status.roomId));
 
@@ -339,6 +402,34 @@ export const App: React.FC = () => {
                 style={{ width: `${Math.round(opacityToast.opacity * 100)}%` }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Height Adjustment HUD Toast */}
+      {heightToast && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 animate-in fade-in zoom-in-95">
+          <div className="px-3.5 py-1.5 rounded-full bg-slate-900/95 border border-white/20 shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-sans text-white/95">
+            <MoveVertical className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-medium text-slate-300">窗口高度</span>
+            <span className="font-mono font-bold text-cyan-300">{heightToast.height}px</span>
+            <span className="text-[11px] font-mono text-slate-400">({heightToast.delta > 0 ? `+${heightToast.delta}` : heightToast.delta}px)</span>
+          </div>
+        </div>
+      )}
+
+      {/* Page Scroll HUD Toast */}
+      {scrollToast && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-200 animate-in fade-in zoom-in-95">
+          <div className="px-3.5 py-1.5 rounded-full bg-slate-900/95 border border-white/20 shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-sans text-white/95">
+            {scrollToast.direction === 'down' ? (
+              <ArrowDown className="w-3.5 h-3.5 text-blue-400 animate-bounce" />
+            ) : (
+              <ArrowUp className="w-3.5 h-3.5 text-blue-400 animate-bounce" />
+            )}
+            <span className="font-medium text-slate-200">
+              {scrollToast.direction === 'down' ? '向下翻半页' : '向上翻半页'}
+            </span>
           </div>
         </div>
       )}
