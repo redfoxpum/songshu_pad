@@ -298,7 +298,7 @@ export const App: React.FC = () => {
     } else if (!permissionGranted) {
       window.electronAPI.setWindowSize(400, 380);
     } else if (!isSessionActive) {
-      window.electronAPI.setWindowSize(400, 370);
+      window.electronAPI.setWindowSize(400, 310);
     } else {
       // Use user's custom width and height
       window.electronAPI.setWindowSize(dimensionRef.current.width, dimensionRef.current.height);

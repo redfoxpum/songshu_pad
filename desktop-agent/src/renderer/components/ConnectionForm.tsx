@@ -4,10 +4,7 @@ import {
   History,
   AlertCircle,
   ShieldCheck,
-  Globe,
   KeyRound,
-  ChevronDown,
-  ChevronUp,
   X,
   Lock,
   Sparkles,
@@ -25,6 +22,7 @@ interface ConnectionFormProps {
 const STORAGE_KEY_TOKEN = 'squirrel_agent_connect_key';
 const STORAGE_KEY_SERVER = 'squirrel_agent_server_url';
 const STORAGE_KEY_ROOM = 'squirrel_agent_room_id';
+const STORAGE_KEY_LAST = 'squirrel_agent_last_connection';
 const STORAGE_KEY_RECENTS = 'squirrel_agent_recent_tokens';
 
 export const ConnectionForm: React.FC<ConnectionFormProps> = ({
@@ -34,8 +32,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 }) => {
   const [connectKey, setConnectKey] = useState('');
   const [serverUrl, setServerUrl] = useState('http://localhost:3000');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [recentTokens, setRecentTokens] = useState<string[]>([]);
+  const [lastConnection, setLastConnection] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,13 +40,19 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       const savedServer = localStorage.getItem(STORAGE_KEY_SERVER);
       if (savedServer) setServerUrl(savedServer);
 
-      const savedToken = localStorage.getItem(STORAGE_KEY_TOKEN) || localStorage.getItem(STORAGE_KEY_ROOM);
-      if (savedToken) setConnectKey(savedToken);
+      const savedLast =
+        localStorage.getItem(STORAGE_KEY_LAST) ||
+        localStorage.getItem(STORAGE_KEY_TOKEN) ||
+        localStorage.getItem(STORAGE_KEY_ROOM);
 
-      const savedRecents = localStorage.getItem(STORAGE_KEY_RECENTS) || localStorage.getItem('squirrel_agent_recent_rooms');
-      if (savedRecents) {
-        setRecentTokens(JSON.parse(savedRecents));
+      if (savedLast) {
+        setConnectKey(savedLast);
+        setLastConnection(savedLast);
       }
+
+      // Clean up legacy multi-item recents so they do not persist
+      localStorage.removeItem(STORAGE_KEY_RECENTS);
+      localStorage.removeItem('squirrel_agent_recent_rooms');
     } catch (e) {
       console.warn('Failed to load connection storage:', e);
     }
@@ -85,15 +88,17 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       return;
     }
 
-    // Save to localStorage
+    // Save only the single last connection to localStorage
     try {
       localStorage.setItem(STORAGE_KEY_TOKEN, trimmed);
+      localStorage.setItem(STORAGE_KEY_LAST, trimmed);
       localStorage.setItem(STORAGE_KEY_SERVER, decoded.serverUrl);
       localStorage.setItem(STORAGE_KEY_ROOM, decoded.roomId);
+      setLastConnection(trimmed);
 
-      const updatedRecents = [trimmed, ...recentTokens.filter((r) => r !== trimmed)].slice(0, 4);
-      setRecentTokens(updatedRecents);
-      localStorage.setItem(STORAGE_KEY_RECENTS, JSON.stringify(updatedRecents));
+      // Clean up legacy multi-history
+      localStorage.removeItem(STORAGE_KEY_RECENTS);
+      localStorage.removeItem('squirrel_agent_recent_rooms');
     } catch (err) {
       // ignore
     }
@@ -113,20 +118,26 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     }
   };
 
-  const handleSelectRecent = (token: string) => {
-    setConnectKey(token);
-    setLocalError(null);
-  };
-
-  const handleRemoveRecent = (e: React.MouseEvent, tokenToRemove: string) => {
+  const handleClearLastConnection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = recentTokens.filter((r) => r !== tokenToRemove);
-    setRecentTokens(updated);
+    setLastConnection(null);
     try {
-      localStorage.setItem(STORAGE_KEY_RECENTS, JSON.stringify(updated));
+      localStorage.removeItem(STORAGE_KEY_LAST);
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      localStorage.removeItem(STORAGE_KEY_ROOM);
     } catch (err) {
       // ignore
     }
+    if (connectKey === lastConnection) {
+      setConnectKey('');
+    }
+  };
+
+  const formatDisplayLabel = (token: string) => {
+    if (token.startsWith('sqp_')) {
+      return `口令 ${token.slice(0, 10)}...`;
+    }
+    return token.length > 20 ? `${token.slice(0, 18)}...` : token;
   };
 
   const displayError = localError || externalError;
@@ -237,78 +248,35 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           </div>
         </div>
 
-        {/* Recent Tokens / Rooms Chips */}
-        {recentTokens.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+        {/* Only show the single last connection if present */}
+        {lastConnection && (
+          <div className="flex items-center gap-1.5 pt-0.5">
             <div className="flex items-center gap-1 text-[10px] text-slate-400 font-sans">
-              <History className="w-3 h-3" />
-              <span>历史:</span>
+              <History className="w-3 h-3 text-slate-400" />
+              <span>上次:</span>
             </div>
-            {recentTokens.map((token) => {
-              const isEnc = token.startsWith('sqp_');
-              const displayLabel = isEnc
-                ? `口令 ${token.slice(0, 10)}...`
-                : token.length > 18
-                ? `${token.slice(0, 16)}...`
-                : token;
-
-              return (
-                <div
-                  key={token}
-                  onClick={() => handleSelectRecent(token)}
-                  className={`group flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border cursor-pointer transition-all duration-150 app-no-drag ${
-                    connectKey === token
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs'
-                      : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-white/[0.08] hover:text-slate-200'
-                  }`}
-                >
-                  <span>{displayLabel}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => handleRemoveRecent(e, token)}
-                    className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity ml-0.5"
-                    title="清除记录"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Advanced Settings Collapsible (Optional Custom Server) */}
-      <div className="flex flex-col gap-1.5">
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((prev) => !prev)}
-          className="flex items-center justify-between px-1.5 py-0.5 text-[11px] text-slate-400 hover:text-slate-300 transition-colors app-no-drag"
-        >
-          <span className="flex items-center gap-1.5">
-            <Globe className="w-3 h-3 text-slate-500" />
-            <span>自定义服务器地址 (本地调试 / 私有隧道)</span>
-          </span>
-          {showAdvanced ? (
-            <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-          )}
-        </button>
-
-        {showAdvanced && (
-          <div className="glass-subcard rounded-xl p-3 flex flex-col gap-1.5 bg-black/30 animate-in fade-in zoom-in-98 duration-150">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-medium text-slate-400">默认服务器地址 (仅对常规房间号生效)</label>
-              <span className="text-[9px] font-mono text-slate-500">HTTP / WS</span>
+            <div
+              onClick={() => {
+                setConnectKey(lastConnection);
+                setLocalError(null);
+              }}
+              className={`group flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border cursor-pointer transition-all duration-150 app-no-drag ${
+                connectKey === lastConnection
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-xs'
+                  : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-white/[0.08] hover:text-slate-200'
+              }`}
+              title="点击填入上次连接口令"
+            >
+              <span>{formatDisplayLabel(lastConnection)}</span>
+              <button
+                type="button"
+                onClick={handleClearLastConnection}
+                className="opacity-0 group-hover:opacity-100 hover:text-rose-400 transition-opacity ml-0.5"
+                title="清除上次连接记录"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
             </div>
-            <input
-              type="text"
-              value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="http://localhost:3000"
-              className="w-full px-2.5 py-1.5 text-xs font-mono bg-black/40 border border-white/10 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/60 app-no-drag transition"
-            />
           </div>
         )}
       </div>
