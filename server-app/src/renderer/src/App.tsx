@@ -12,6 +12,8 @@ import {
   fetchScreenshots,
   triggerCapture,
   deleteScreenshot,
+  deleteRoom,
+  bulkDeleteRooms,
   closeRoom,
   bulkCloseRooms,
   reopenRoom,
@@ -25,7 +27,7 @@ import { ActionBar } from './components/ActionBar';
 import { ScreenshotGallery } from './components/ScreenshotGallery';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { DeleteRoomModal } from './components/DeleteRoomModal';
-import { BulkCloseModal } from './components/BulkCloseModal';
+import { BulkDeleteModal, BulkCloseModal } from './components/BulkCloseModal';
 import { QRCodeModal } from './components/QRCodeModal';
 import { ImageViewerModal } from './components/ImageViewerModal';
 import { ToastContainer } from './components/Toast';
@@ -64,8 +66,8 @@ export const App: React.FC = () => {
   const [bulkTargetRooms, setBulkTargetRooms] = useState<RoomItem[]>([]);
   const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
   const [viewingScreenshot, setViewingScreenshot] = useState<ScreenshotInfo | null>(null);
-  const [isClosingRoom, setIsClosingRoom] = useState(false);
-  const [isBulkClosing, setIsBulkClosing] = useState(false);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isReopeningRoom, setIsReopeningRoom] = useState(false);
 
   // Toast System
@@ -213,26 +215,36 @@ export const App: React.FC = () => {
     }
   };
 
-  // Delete / Close Room
-  const handleConfirmCloseRoom = async (roomId: string) => {
-    setIsClosingRoom(true);
+  // Permanently Delete Room
+  const handleConfirmDeleteRoom = async (roomId: string) => {
+    setIsDeletingRoom(true);
     try {
-      const res = await closeRoom(roomId);
+      const res = await deleteRoom(roomId);
       if (res.success) {
-        addToast(`🔒 房间 ${roomId} 已安全关闭并归档，外部访问已阻断（磁盘数据完整保留）`, 'success');
+        addToast(`🗑️ 房间 ${roomId} 及其本地磁盘数据已彻底删除`, 'success');
         setIsDeleteModalOpen(false);
+        setRooms((prev) => {
+          const remaining = prev.filter((r) => r.id !== roomId);
+          setSelectedRoomId((current) => {
+            if (current === roomId) {
+              return remaining.length > 0 ? remaining[0].id : null;
+            }
+            return current;
+          });
+          return remaining;
+        });
         await loadRooms();
       } else {
-        addToast(`关闭房间失败: ${res.message}`, 'error');
+        addToast(`删除房间失败: ${res.message}`, 'error');
       }
     } catch (err: any) {
-      addToast(`关闭房间异常: ${err.message}`, 'error');
+      addToast(`删除房间异常: ${err.message}`, 'error');
     } finally {
-      setIsClosingRoom(false);
+      setIsDeletingRoom(false);
     }
   };
 
-  // Reopen Room
+  // Reopen Room (Legacy support)
   const handleReopenRoom = async (roomId: string) => {
     setIsReopeningRoom(true);
     try {
@@ -250,29 +262,40 @@ export const App: React.FC = () => {
     }
   };
 
-  // Open Bulk Close Modal
+  // Open Bulk Delete Modal
   const handleOpenBulkModal = (targetRooms: RoomItem[]) => {
     setBulkTargetRooms(targetRooms);
     setIsBulkModalOpen(true);
   };
 
-  // Confirm Bulk Close
-  const handleConfirmBulkClose = async (roomIds: string[]) => {
-    setIsBulkClosing(true);
+  // Confirm Bulk Delete
+  const handleConfirmBulkDelete = async (roomIds: string[]) => {
+    setIsBulkDeleting(true);
     try {
-      const res = await bulkCloseRooms(roomIds);
-      if (res.success && res.closedCount > 0) {
-        addToast(`🔒 已成功批量关闭 ${res.closedCount} 个面试房间（历史数据完整保留）`, 'success');
+      const res = await bulkDeleteRooms(roomIds);
+      if (res.success && res.deletedCount > 0) {
+        addToast(`🗑️ 已成功批量彻底删除 ${res.deletedCount} 个面试房间`, 'success');
         setIsBulkModalOpen(false);
         setBulkTargetRooms([]);
+        const idSet = new Set(roomIds);
+        setRooms((prev) => {
+          const remaining = prev.filter((r) => !idSet.has(r.id));
+          setSelectedRoomId((current) => {
+            if (current && idSet.has(current)) {
+              return remaining.length > 0 ? remaining[0].id : null;
+            }
+            return current;
+          });
+          return remaining;
+        });
         await loadRooms();
       } else {
-        addToast(`批量关闭失败: ${res.message || '未知错误'}`, 'error');
+        addToast(`批量删除失败: ${res.message || '未知错误'}`, 'error');
       }
     } catch (err: any) {
-      addToast(`批量关闭异常: ${err.message}`, 'error');
+      addToast(`批量删除异常: ${err.message}`, 'error');
     } finally {
-      setIsBulkClosing(false);
+      setIsBulkDeleting(false);
     }
   };
 
@@ -301,6 +324,7 @@ export const App: React.FC = () => {
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
           onRefresh={loadRooms}
           isLoading={isLoadingRooms}
+          onOpenBulkDelete={handleOpenBulkModal}
           onOpenBulkClose={handleOpenBulkModal}
         />
 
@@ -387,16 +411,16 @@ export const App: React.FC = () => {
         isOpen={isDeleteModalOpen}
         room={currentRoom || null}
         onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleConfirmCloseRoom}
-        isProcessing={isClosingRoom}
+        onConfirm={handleConfirmDeleteRoom}
+        isProcessing={isDeletingRoom}
       />
 
-      <BulkCloseModal
+      <BulkDeleteModal
         isOpen={isBulkModalOpen}
         rooms={bulkTargetRooms}
         onClose={() => setIsBulkModalOpen(false)}
-        onConfirm={handleConfirmBulkClose}
-        isProcessing={isBulkClosing}
+        onConfirm={handleConfirmBulkDelete}
+        isProcessing={isBulkDeleting}
       />
 
       <QRCodeModal

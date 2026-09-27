@@ -2,6 +2,8 @@ export type SupportedLanguage = 'python' | 'cpp' | 'java';
 
 export type EditorTheme = 'dark' | 'light';
 
+export type ActiveView = 'code' | 'whiteboard';
+
 export interface UserProfile {
   name: string;
   color: string;

@@ -5,6 +5,7 @@ import { PermissionGate } from './components/PermissionGate';
 import { ConnectionForm } from './components/ConnectionForm';
 import { FloatingHUD } from './components/FloatingHUD';
 import { PadViewer } from './components/PadViewer';
+import { Whiteboard } from './components/Whiteboard';
 import { Eye, ArrowDown, ArrowUp, MoveVertical } from 'lucide-react';
 
 const STORAGE_OPACITY = 'squirrel_agent_opacity';
@@ -18,6 +19,24 @@ interface WindowDimension {
 export const App: React.FC = () => {
   const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [activeView, setActiveView] = useState<'code' | 'whiteboard'>('code');
+
+  // Toggle between code and whiteboard using Cmd+B / Ctrl+B
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'b' || e.code === 'KeyB')) {
+        e.preventDefault();
+        setActiveView((prev) => (prev === 'code' ? 'whiteboard' : 'code'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const [opacity, setOpacity] = useState<number>(0.35);
   const [opacityToast, setOpacityToast] = useState<{ visible: boolean; opacity: number } | null>(null);
   const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -486,6 +505,8 @@ export const App: React.FC = () => {
             reconnectAttempt={status.reconnectAttempt}
             roomId={status.roomId}
             language={language}
+            activeView={activeView}
+            onActiveViewChange={setActiveView}
             clickThrough={status.clickThrough}
             onToggleClickThrough={handleToggleClickThrough}
             fontSize={fontSize}
@@ -511,15 +532,28 @@ export const App: React.FC = () => {
               </div>
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden relative bg-transparent">
-                <PadViewer
-                  serverUrl={status.serverUrl || getSavedServerUrl()}
-                  roomId={status.roomId}
-                  fontSize={fontSize}
-                  wrapLines={wrapLines}
-                  opacity={opacity}
-                  onLanguageChange={setLanguage}
-                  onRoomInvalid={handleRoomInvalid}
-                />
+                {/* Code Editor View */}
+                <div className={`w-full h-full ${activeView === 'code' ? 'flex flex-col' : 'hidden'}`}>
+                  <PadViewer
+                    serverUrl={status.serverUrl || getSavedServerUrl()}
+                    roomId={status.roomId}
+                    fontSize={fontSize}
+                    wrapLines={wrapLines}
+                    opacity={opacity}
+                    onLanguageChange={setLanguage}
+                    onRoomInvalid={handleRoomInvalid}
+                  />
+                </div>
+
+                {/* Whiteboard Canvas View */}
+                <div className={`w-full h-full ${activeView === 'whiteboard' ? 'block' : 'hidden'}`}>
+                  <Whiteboard
+                    serverUrl={status.serverUrl || getSavedServerUrl()}
+                    roomId={status.roomId}
+                    isVisible={activeView === 'whiteboard'}
+                    opacity={opacity}
+                  />
+                </div>
               </div>
             )}
           </div>

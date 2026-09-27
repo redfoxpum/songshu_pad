@@ -18,8 +18,11 @@ import {
   isRoomClosed,
   closeRoomMeta,
   reopenRoomMeta,
+  deleteRoomPermanently,
+  unmarkRoomDeleted,
 } from './persistence.js';
 import { getYDoc, getAllLoadedDocs, disconnectRoom } from './websocket.js';
+import { roomCodeManager } from './roomCodeManager.js';
 
 export class RoomManager {
   constructor() {
@@ -28,6 +31,7 @@ export class RoomManager {
 
   public getOrCreateDoc(roomId: string, initialLanguage: SupportedLanguage = 'python', initialName?: string): Y.Doc {
     const sanitized = sanitizeRoomId(roomId);
+    unmarkRoomDeleted(sanitized);
     ensureRoomDir(sanitized);
 
     const doc = getYDoc(sanitized);
@@ -245,6 +249,51 @@ export class RoomManager {
       success: true,
       closedCount: closedIds.length,
       closedIds,
+      failedIds,
+    };
+  }
+
+  public deleteRoom(roomId: string): boolean {
+    const sanitized = sanitizeRoomId(roomId);
+    if (!sanitized) return false;
+
+    // Disconnect websockets and desktop agent connections
+    disconnectRoom(sanitized);
+
+    // Clear in-memory room code state and long-polling listeners
+    roomCodeManager.clearRoom(sanitized);
+
+    // Physically wipe from disk
+    return deleteRoomPermanently(sanitized);
+  }
+
+  public bulkDeleteRooms(roomIds: string[]): {
+    success: boolean;
+    deletedCount: number;
+    deletedIds: string[];
+    failedIds: string[];
+  } {
+    const deletedIds: string[] = [];
+    const failedIds: string[] = [];
+
+    for (const rawId of roomIds) {
+      const id = sanitizeRoomId(rawId);
+      if (!id) {
+        failedIds.push(rawId);
+        continue;
+      }
+      const ok = this.deleteRoom(id);
+      if (ok) {
+        deletedIds.push(id);
+      } else {
+        failedIds.push(id);
+      }
+    }
+
+    return {
+      success: true,
+      deletedCount: deletedIds.length,
+      deletedIds,
       failedIds,
     };
   }

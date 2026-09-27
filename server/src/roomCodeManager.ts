@@ -168,6 +168,19 @@ class RoomCodeManager {
       }, Math.max(500, Math.min(30000, timeoutMs)));
     });
   }
+
+  /**
+   * Clears room code state and cancels listeners when room is deleted
+   */
+  public clearRoom(roomId: string): void {
+    const sanitized = sanitizeRoomId(roomId);
+    this.cache.delete(sanitized);
+    const roomListeners = this.listeners.get(sanitized);
+    if (roomListeners) {
+      roomListeners.clear();
+      this.listeners.delete(sanitized);
+    }
+  }
 }
 
 export const roomCodeManager = new RoomCodeManager();

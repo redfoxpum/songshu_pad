@@ -65,6 +65,23 @@ export function sanitizeRoomId(roomId: string): string {
   return roomId.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
+// Set of room IDs that have been permanently deleted to prevent resurrection from WebSocket writeState
+const deletedRooms = new Set<string>();
+
+export function isRoomMarkedDeleted(roomId: string): boolean {
+  return deletedRooms.has(sanitizeRoomId(roomId));
+}
+
+export function markRoomDeleted(roomId: string): void {
+  const sanitized = sanitizeRoomId(roomId);
+  if (sanitized) deletedRooms.add(sanitized);
+}
+
+export function unmarkRoomDeleted(roomId: string): void {
+  const sanitized = sanitizeRoomId(roomId);
+  if (sanitized) deletedRooms.delete(sanitized);
+}
+
 export function getRoomDir(roomId: string): string {
   return path.join(getDataDir(), sanitizeRoomId(roomId));
 }
@@ -154,8 +171,11 @@ export function migrateLegacyRoom(roomId: string): boolean {
  * Ensures the room directory and screenshots directory exist, running legacy migration if needed.
  */
 export function ensureRoomDir(roomId: string): string {
-  ensureDataDir();
   const sanitized = sanitizeRoomId(roomId);
+  if (isRoomMarkedDeleted(sanitized)) {
+    return getRoomDir(sanitized);
+  }
+  ensureDataDir();
   migrateLegacyRoom(sanitized);
 
   const roomDir = getRoomDir(sanitized);
@@ -244,6 +264,9 @@ export function loadRoomMeta(roomId: string): RoomMetadata | null {
  */
 export function saveRoomMeta(roomId: string, meta: Partial<RoomMetadata> & { id: string }): void {
   const sanitized = sanitizeRoomId(roomId);
+  if (isRoomMarkedDeleted(sanitized)) {
+    return;
+  }
   ensureRoomDir(sanitized);
 
   const metaPath = getRoomMetaPath(sanitized);
@@ -306,6 +329,47 @@ export function reopenRoomMeta(roomId: string): boolean {
 }
 
 /**
+ * Permanently deletes a room and its directory from disk, removing all screenshots,
+ * code states (doc.bin, code.txt), and metadata.
+ */
+export function deleteRoomPermanently(roomId: string): boolean {
+  const sanitized = sanitizeRoomId(roomId);
+  if (!sanitized) return false;
+
+  markRoomDeleted(sanitized);
+
+  const timeout = saveTimeouts.get(sanitized);
+  if (timeout) {
+    clearTimeout(timeout);
+    saveTimeouts.delete(sanitized);
+  }
+
+  const roomDir = getRoomDir(sanitized);
+  const legacyPath = getLegacyRoomFilePath(sanitized);
+  let deleted = false;
+
+  if (fs.existsSync(roomDir)) {
+    try {
+      fs.rmSync(roomDir, { recursive: true, force: true });
+      deleted = true;
+    } catch (err) {
+      console.error(`[Persistence] Failed to remove room directory for ${sanitized}:`, err);
+    }
+  }
+
+  if (fs.existsSync(legacyPath)) {
+    try {
+      fs.rmSync(legacyPath, { force: true });
+      deleted = true;
+    } catch (err) {
+      console.error(`[Persistence] Failed to remove legacy file for ${sanitized}:`, err);
+    }
+  }
+
+  return deleted;
+}
+
+/**
  * Loads Yjs room state from doc.bin.
  */
 export function loadRoomState(roomId: string, ydoc: Y.Doc): boolean {
@@ -347,6 +411,9 @@ export function loadRoomState(roomId: string, ydoc: Y.Doc): boolean {
  */
 export function saveRoomState(roomId: string, ydoc: Y.Doc): void {
   const sanitized = sanitizeRoomId(roomId);
+  if (isRoomMarkedDeleted(sanitized)) {
+    return;
+  }
   ensureRoomDir(sanitized);
 
   const docPath = getRoomDocPath(sanitized);
@@ -376,6 +443,9 @@ const saveTimeouts = new Map<string, NodeJS.Timeout>();
 
 export function debounceSaveRoomState(roomId: string, ydoc: Y.Doc, delayMs = 1000): void {
   const sanitized = sanitizeRoomId(roomId);
+  if (isRoomMarkedDeleted(sanitized)) {
+    return;
+  }
   const existing = saveTimeouts.get(sanitized);
   if (existing) {
     clearTimeout(existing);

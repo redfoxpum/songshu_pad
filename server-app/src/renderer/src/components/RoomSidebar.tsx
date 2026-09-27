@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   RefreshCw,
   Lock,
+  Trash2,
   ListChecks,
   CheckSquare,
   Square,
@@ -22,7 +23,8 @@ interface RoomSidebarProps {
   onOpenCreateModal: () => void;
   onRefresh: () => void;
   isLoading: boolean;
-  onOpenBulkClose: (targetRooms: RoomItem[]) => void;
+  onOpenBulkDelete?: (targetRooms: RoomItem[]) => void;
+  onOpenBulkClose?: (targetRooms: RoomItem[]) => void;
 }
 
 export const RoomSidebar: React.FC<RoomSidebarProps> = ({
@@ -32,6 +34,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   onOpenCreateModal,
   onRefresh,
   isLoading,
+  onOpenBulkDelete,
   onOpenBulkClose,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,11 +119,15 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
     setSelectedBatchIds(new Set());
   };
 
-  // Trigger Bulk Close
-  const handleTriggerBulkClose = () => {
+  // Trigger Bulk Delete
+  const handleTriggerBulkDelete = () => {
     if (selectedBatchIds.size === 0) return;
     const selectedRooms = rooms.filter((r) => selectedBatchIds.has(r.id));
-    onOpenBulkClose(selectedRooms);
+    if (onOpenBulkDelete) {
+      onOpenBulkDelete(selectedRooms);
+    } else if (onOpenBulkClose) {
+      onOpenBulkClose(selectedRooms);
+    }
   };
 
   const selectedCount = selectedBatchIds.size;
@@ -153,7 +160,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                 ? 'bg-rose-950/60 border-rose-500/60 text-rose-300 shadow-sm'
                 : 'bg-[#151D30] border-slate-700/60 hover:bg-slate-700/60 text-slate-300 hover:text-white'
             }`}
-            title={isBatchMode ? '退出批量管理模式' : '开启批量管理 / 批量关闭模式'}
+            title={isBatchMode ? '退出批量管理模式' : '开启批量管理 / 批量删除模式'}
           >
             <ListChecks className="w-4 h-4" />
             <span>{isBatchMode ? '退出批量' : '批量管理'}</span>
@@ -250,9 +257,9 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
               </div>
             </div>
 
-            {/* Bulk Close Button */}
+            {/* Bulk Delete Button */}
             <button
-              onClick={handleTriggerBulkClose}
+              onClick={handleTriggerBulkDelete}
               disabled={selectedCount === 0}
               className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg shadow-md transition-all active:scale-[0.98] ${
                 selectedCount > 0
@@ -260,8 +267,8 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                   : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
               }`}
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>批量关闭所选房间 ({selectedCount})</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>批量彻底删除所选房间 ({selectedCount})</span>
             </button>
           </div>
         )}

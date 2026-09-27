@@ -260,59 +260,62 @@ apiRouter.post(['/rooms/:roomId/code', '/rooms/:id/code'], (req: Request, res: R
   }
 });
 
-// Soft-delete / Close room (disconnects all participants and prevents new joins, preserves disk data)
+// Permanently delete a room (disconnects all participants and wipes all disk data)
 apiRouter.delete(['/rooms/:id', '/rooms/:id/close'], (req: Request, res: Response) => {
   try {
     const roomId = sanitizeRoomId(req.params.id);
     if (!roomId) {
       return res.status(400).json({ error: 'Invalid room id' });
     }
-    const success = roomManager.closeRoom(roomId);
+    const success = roomManager.deleteRoom(roomId);
     if (!success) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ error: 'Room not found or could not be deleted' });
     }
-    console.log(`[API] Room ${roomId} has been safely closed by host.`);
-    res.json({ success: true, message: 'Room closed successfully', roomId });
+    console.log(`[API] Room ${roomId} has been permanently deleted by host.`);
+    res.json({ success: true, message: 'Room permanently deleted', roomId });
   } catch (error) {
-    console.error('[API] Failed to close room:', error);
-    res.status(500).json({ error: 'Failed to close room' });
+    console.error('[API] Failed to delete room:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
   }
 });
 
-// Bulk close rooms (disconnects all participants and prevents new joins for multiple rooms, preserves disk data)
-apiRouter.post(['/rooms/bulk-close', '/rooms/close-bulk', '/rooms/batch-close'], (req: Request, res: Response) => {
-  try {
-    let targetIds: string[] = [];
-    if (req.body?.allActive === true) {
-      const allRooms = roomManager.getAllRooms(undefined, false);
-      targetIds = allRooms.map((r) => r.id);
-    } else if (Array.isArray(req.body?.roomIds)) {
-      targetIds = req.body.roomIds;
-    } else if (typeof req.body?.roomIds === 'string') {
-      targetIds = [req.body.roomIds];
-    }
+// Bulk permanently delete rooms (disconnects all participants and wipes disk data for multiple rooms)
+apiRouter.post(
+  ['/rooms/bulk-delete', '/rooms/delete-bulk', '/rooms/batch-delete', '/rooms/bulk-close', '/rooms/close-bulk'],
+  (req: Request, res: Response) => {
+    try {
+      let targetIds: string[] = [];
+      if (req.body?.allActive === true || req.body?.all === true) {
+        const allRooms = roomManager.getAllRooms(undefined, true);
+        targetIds = allRooms.map((r) => r.id);
+      } else if (Array.isArray(req.body?.roomIds)) {
+        targetIds = req.body.roomIds;
+      } else if (typeof req.body?.roomIds === 'string') {
+        targetIds = [req.body.roomIds];
+      }
 
-    if (targetIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No room IDs provided or no active rooms found',
-        closedCount: 0,
-        closedIds: [],
-        failedIds: [],
+      if (targetIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No room IDs provided',
+          deletedCount: 0,
+          deletedIds: [],
+          failedIds: [],
+        });
+      }
+
+      const result = roomManager.bulkDeleteRooms(targetIds);
+      console.log(`[API] Bulk deleted ${result.deletedCount} room(s):`, result.deletedIds);
+      res.json({
+        message: `Successfully deleted ${result.deletedCount} room(s)`,
+        ...result,
       });
+    } catch (error) {
+      console.error('[API] Failed to bulk delete rooms:', error);
+      res.status(500).json({ error: 'Failed to bulk delete rooms' });
     }
-
-    const result = roomManager.bulkCloseRooms(targetIds);
-    console.log(`[API] Bulk closed ${result.closedCount} room(s):`, result.closedIds);
-    res.json({
-      message: `Successfully closed ${result.closedCount} room(s)`,
-      ...result,
-    });
-  } catch (error) {
-    console.error('[API] Failed to bulk close rooms:', error);
-    res.status(500).json({ error: 'Failed to bulk close rooms' });
   }
-});
+);
 
 apiRouter.post('/rooms/:id/close', (req: Request, res: Response) => {
   try {
@@ -320,15 +323,15 @@ apiRouter.post('/rooms/:id/close', (req: Request, res: Response) => {
     if (!roomId) {
       return res.status(400).json({ error: 'Invalid room id' });
     }
-    const success = roomManager.closeRoom(roomId);
+    const success = roomManager.deleteRoom(roomId);
     if (!success) {
-      return res.status(404).json({ error: 'Room not found' });
+      return res.status(404).json({ error: 'Room not found or could not be deleted' });
     }
-    console.log(`[API] Room ${roomId} has been safely closed by host.`);
-    res.json({ success: true, message: 'Room closed successfully', roomId });
+    console.log(`[API] Room ${roomId} has been permanently deleted via close alias.`);
+    res.json({ success: true, message: 'Room permanently deleted', roomId });
   } catch (error) {
-    console.error('[API] Failed to close room:', error);
-    res.status(500).json({ error: 'Failed to close room' });
+    console.error('[API] Failed to delete room:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
   }
 });
 

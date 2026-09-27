@@ -1,6 +1,6 @@
 {
   "name": "desktop-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "松鼠Pad macOS 桌面伴侣被控端 (Squirrel Pad Desktop Agent)",
@@ -32,6 +32,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/view": "^6.36.4",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@lezer/highlight": "^1.2.1",
     "codemirror": "^6.0.1",
     "lucide-react": "^0.475.0",

@@ -7,9 +7,11 @@ import {
   UserProfile,
   RemoteParticipant,
   ConnectionStatus,
+  ActiveView,
 } from '../types';
 import { Header } from '../components/Header';
 import { CodeEditor } from '../components/CodeEditor';
+import { Whiteboard } from '../components/Whiteboard';
 import { UserModal } from '../components/UserModal';
 import { getStoredUser, saveStoredUser } from '../utils/user';
 import { saveRecentRoom } from '../utils/storage';
@@ -37,6 +39,23 @@ export const RoomPage: React.FC<RoomPageProps> = ({
   const [participants, setParticipants] = useState<RemoteParticipant[]>([]);
   const [roomNotFound, setRoomNotFound] = useState(false);
   const [isRoomClosed, setIsRoomClosed] = useState(false);
+  const [activeView, setActiveView] = useState<ActiveView>('code');
+
+  // Toggle between code and whiteboard using Cmd+B / Ctrl+B
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'b' || e.code === 'KeyB')) {
+        e.preventDefault();
+        setActiveView((prev) => (prev === 'code' ? 'whiteboard' : 'code'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Validate that the room was actually created by host and is not closed
   useEffect(() => {
@@ -311,6 +330,8 @@ export const RoomPage: React.FC<RoomPageProps> = ({
         currentUser={currentUser}
         participants={participants}
         connectionStatus={connectionStatus}
+        activeView={activeView}
+        onActiveViewChange={setActiveView}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onCopyAllCode={handleCopyAllCode}
         onExportCode={handleExportCode}
@@ -318,22 +339,38 @@ export const RoomPage: React.FC<RoomPageProps> = ({
         onShowToast={onShowToast}
       />
 
-      {/* Editor Main Canvas */}
+      {/* Editor & Whiteboard Canvas (DOM Keep-Alive) */}
       <main className="flex-1 w-full h-full relative overflow-hidden">
-        <CodeEditor
-          key={roomId}
-          roomId={roomId}
-          language={language}
-          theme={theme}
-          currentUser={currentUser}
-          onLanguageChange={handleLanguageChange}
-          onCodeChange={(code) => {
-            currentCodeRef.current = code;
-          }}
-          onSyncStatus={(status) => {
-            setConnectionStatus(status === 'error' ? 'disconnected' : 'connected');
-          }}
-        />
+        {/* Code Editor View */}
+        <div className={`w-full h-full ${activeView === 'code' ? 'block' : 'hidden'}`}>
+          <CodeEditor
+            key={roomId}
+            roomId={roomId}
+            language={language}
+            theme={theme}
+            currentUser={currentUser}
+            onLanguageChange={handleLanguageChange}
+            onCodeChange={(code) => {
+              currentCodeRef.current = code;
+            }}
+            onSyncStatus={(status) => {
+              setConnectionStatus(status === 'error' ? 'disconnected' : 'connected');
+            }}
+          />
+        </div>
+
+        {/* Whiteboard Canvas View */}
+        {yjsState && (
+          <div className={`w-full h-full ${activeView === 'whiteboard' ? 'block' : 'hidden'}`}>
+            <Whiteboard
+              doc={yjsState.doc}
+              provider={yjsState.provider}
+              currentUser={currentUser}
+              theme={theme}
+              isVisible={activeView === 'whiteboard'}
+            />
+          </div>
+        )}
       </main>
 
       {/* User Customization Modal */}

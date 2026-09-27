@@ -15,6 +15,8 @@ import {
   ArrowLeft,
   FileCode2,
   Keyboard,
+  Code2,
+  PenTool,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -28,6 +30,8 @@ interface HeaderBarProps {
   reconnectAttempt?: number;
   roomId?: string;
   language?: string;
+  activeView?: 'code' | 'whiteboard';
+  onActiveViewChange?: (view: 'code' | 'whiteboard') => void;
   contentProtection?: boolean;
   onToggleContentProtection?: () => void;
   clickThrough?: boolean;
@@ -50,6 +54,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   reconnectAttempt = 0,
   roomId = '',
   language = 'python',
+  activeView = 'code',
+  onActiveViewChange,
   contentProtection = true,
   onToggleContentProtection,
   clickThrough = false,
@@ -221,9 +227,39 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         )}
       </div>
 
-      {/* Center: Stealth & Click-Through Toggles */}
+      {/* Center: View Switcher (Code / Whiteboard) & Stealth & Click-Through Toggles */}
       {(isConnected || isReconnecting) && (
         <div className="flex items-center gap-1.5 app-no-drag">
+          {/* Segmented Pill View Switcher */}
+          {onActiveViewChange && (
+            <div className="flex items-center p-0.5 rounded-lg border border-white/10 bg-black/40 text-[10px] font-medium mr-1">
+              <button
+                onClick={() => onActiveViewChange('code')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded transition ${
+                  activeView === 'code'
+                    ? 'bg-white/20 text-amber-300 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="代码协同视图 (快捷键: Cmd/Ctrl + B)"
+              >
+                <Code2 className="w-3 h-3" />
+                <span>代码</span>
+              </button>
+              <button
+                onClick={() => onActiveViewChange('whiteboard')}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded transition ${
+                  activeView === 'whiteboard'
+                    ? 'bg-white/20 text-amber-300 font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title="白板画图视图 (快捷键: Cmd/Ctrl + B)"
+              >
+                <PenTool className="w-3 h-3" />
+                <span>白板</span>
+              </button>
+            </div>
+          )}
+
           {/* Stealth badge (Clickable toggle) */}
           <button
             onClick={onToggleContentProtection}
@@ -274,7 +310,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
       {/* Right: Actions Toolbar */}
       <div className="flex items-center gap-1 app-no-drag">
-        {(isConnected || isReconnecting) && (
+        {(isConnected || isReconnecting) && activeView === 'code' && (
           <>
             {/* Font Size Adjuster & Wrap Segmented Group */}
             <div className="flex items-center bg-white/[0.05] rounded-lg border border-white/10 p-0.5">

@@ -114,6 +114,38 @@
   border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
+/* Whiteboard / Excalidraw Transparent Canvas Overrides */
+.excalidraw,
+.excalidraw-container,
+.excalidraw.theme--dark {
+  background: transparent !important;
+  background-color: transparent !important;
+  --default-bg-color: transparent !important;
+}
+
+.excalidraw .canvas-container,
+.excalidraw canvas {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Maintain crisp dark-glass styling for Excalidraw UI toolbars and popups */
+.excalidraw .Island {
+  background-color: rgba(22, 27, 34, 0.9) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+.excalidraw .dropdown-menu,
+.excalidraw .picker {
+  background: rgba(22, 27, 34, 0.95) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 /* macOS 3D Keycap Badge */
 .kbd-cap {
   display: inline-flex;

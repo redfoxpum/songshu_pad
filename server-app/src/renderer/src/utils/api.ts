@@ -108,15 +108,15 @@ export async function deleteScreenshot(roomId: string, filename: string): Promis
   }
 }
 
-export async function closeRoom(roomId: string): Promise<{ success: boolean; message?: string }> {
+export async function deleteRoom(roomId: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${BASE_URL}/api/rooms/${roomId}/close`, {
-      method: 'POST',
+    const res = await fetch(`${BASE_URL}/api/rooms/${roomId}`, {
+      method: 'DELETE',
     });
     const data = await res.json().catch(() => ({}));
     return {
       success: res.ok,
-      message: data.message || (res.ok ? '房间已关闭' : '关闭房间失败'),
+      message: data.message || (res.ok ? '房间已彻底删除' : '删除房间失败'),
     };
   } catch (err: any) {
     return {
@@ -126,11 +126,11 @@ export async function closeRoom(roomId: string): Promise<{ success: boolean; mes
   }
 }
 
-export async function bulkCloseRooms(
+export async function bulkDeleteRooms(
   roomIds: string[]
-): Promise<{ success: boolean; closedCount: number; closedIds: string[]; message?: string }> {
+): Promise<{ success: boolean; deletedCount: number; deletedIds: string[]; message?: string }> {
   try {
-    const res = await fetch(`${BASE_URL}/api/rooms/bulk-close`, {
+    const res = await fetch(`${BASE_URL}/api/rooms/bulk-delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ roomIds }),
@@ -141,29 +141,40 @@ export async function bulkCloseRooms(
     }
     return {
       success: data.success ?? true,
-      closedCount: data.closedCount ?? 0,
-      closedIds: data.closedIds ?? [],
+      deletedCount: data.deletedCount ?? 0,
+      deletedIds: data.deletedIds ?? [],
       message: data.message,
     };
   } catch (err: any) {
     // Fallback: iterate over rooms individually
     let successCount = 0;
-    const closedIds: string[] = [];
+    const deletedIds: string[] = [];
     for (const id of roomIds) {
-      const r = await closeRoom(id);
+      const r = await deleteRoom(id);
       if (r.success) {
         successCount++;
-        closedIds.push(id);
+        deletedIds.push(id);
       }
     }
     return {
       success: successCount > 0,
-      closedCount: successCount,
-      closedIds,
+      deletedCount: successCount,
+      deletedIds,
       message: err.message,
     };
   }
 }
+
+// Backward-compatible aliases
+export const closeRoom = deleteRoom;
+export const bulkCloseRooms = async (roomIds: string[]) => {
+  const res = await bulkDeleteRooms(roomIds);
+  return {
+    ...res,
+    closedCount: res.deletedCount,
+    closedIds: res.deletedIds,
+  };
+};
 
 export async function reopenRoom(roomId: string): Promise<{ success: boolean; message?: string }> {
   try {

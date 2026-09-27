@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoomItem } from '../types';
-import { AlertTriangle, ShieldCheck, Lock, X } from 'lucide-react';
+import { Trash2, AlertOctagon, AlertTriangle, X } from 'lucide-react';
 
 interface DeleteRoomModalProps {
   isOpen: boolean;
@@ -21,16 +21,21 @@ export const DeleteRoomModal: React.FC<DeleteRoomModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150 select-none">
-      <div className="bg-[#111827] border border-slate-700/80 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-[#111827] border border-rose-600/40 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden ring-1 ring-rose-500/20">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-rose-950/20">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
-              <Lock className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 shadow-inner">
+              <Trash2 className="w-5 h-5 text-rose-400" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">关闭 / 归档面试房间</h3>
-              <p className="text-xs text-slate-400">阻断外部访问并保留全部历史数据</p>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <span>彻底删除面试房间</span>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-600/30 text-rose-300 border border-rose-500/40">
+                  不可逆
+                </span>
+              </h3>
+              <p className="text-xs text-rose-300/80">永久抹除本地磁盘数据与所有截屏记录</p>
             </div>
           </div>
           <button
@@ -59,29 +64,29 @@ export const DeleteRoomModal: React.FC<DeleteRoomModalProps> = ({
               </span>
             </div>
             <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>已记录截图:</span>
+              <span>包含截图:</span>
               <span className="text-sky-400 font-medium">{room.screenshotCount} 张</span>
             </div>
           </div>
 
-          {/* Key Notice Callout */}
+          {/* Key Danger Warning */}
           <div className="space-y-2.5">
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-200">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/60 border border-rose-600/50 text-xs text-rose-200">
+              <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-emerald-300">数据安全完整保留</span>
-                <p className="text-slate-300 text-[11px] mt-0.5">
-                  所有代码文件（<code>doc.bin</code>）、截图图片与元数据均保存在本地磁盘中，绝不丢失。
+                <span className="font-bold text-rose-300">本地磁盘数据将被物理清空</span>
+                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
+                  该房间的专属目录（<code>./data/rooms/{room.id}/</code>）、协同代码快照（<code>doc.bin</code>）、所有候选人桌面监控截图及元数据文件将被<strong>永久删除，无法找回</strong>。
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-200">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-950/30 border border-amber-600/30 text-xs text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-rose-300">立即切断并阻断访问</span>
+                <span className="font-semibold text-amber-300">外部连接立即切断</span>
                 <p className="text-slate-300 text-[11px] mt-0.5">
-                  已连接的候选人与桌面监控端将被立即断开，后续外部打开链接将显示「房间已关闭」。
+                  所有正在连接的候选人网页端及桌面监控 Agent 将被立即切断断开。
                 </p>
               </div>
             </div>
@@ -102,14 +107,14 @@ export const DeleteRoomModal: React.FC<DeleteRoomModalProps> = ({
             type="button"
             onClick={() => onConfirm(room.id)}
             disabled={isProcessing}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-lg shadow-rose-600/20 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-lg shadow-rose-600/25 transition-all active:scale-95 disabled:opacity-50"
           >
             {isProcessing ? (
-              <span>处理中...</span>
+              <span>正在彻底删除...</span>
             ) : (
               <>
-                <Lock className="w-3.5 h-3.5" />
-                <span>确认关闭房间</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>确认彻底删除</span>
               </>
             )}
           </button>

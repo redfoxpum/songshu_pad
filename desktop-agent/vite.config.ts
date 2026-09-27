@@ -5,6 +5,9 @@ import path from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'process.env.IS_PREACT': JSON.stringify('false'),
+  },
   base: './',
   root: path.resolve(__dirname, '.'),
   publicDir: 'public',

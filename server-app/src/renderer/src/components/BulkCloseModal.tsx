@@ -1,8 +1,8 @@
 import React from 'react';
 import { RoomItem } from '../types';
-import { AlertTriangle, ShieldCheck, Lock, X, Layers, CheckSquare } from 'lucide-react';
+import { Trash2, AlertOctagon, AlertTriangle, X } from 'lucide-react';
 
-interface BulkCloseModalProps {
+interface BulkDeleteModalProps {
   isOpen: boolean;
   rooms: RoomItem[];
   onClose: () => void;
@@ -10,7 +10,7 @@ interface BulkCloseModalProps {
   isProcessing?: boolean;
 }
 
-export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
+export const BulkDeleteModal: React.FC<BulkDeleteModalProps> = ({
   isOpen,
   rooms,
   onClose,
@@ -29,21 +29,24 @@ export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150 select-none">
-      <div className="bg-[#111827] border border-slate-700/80 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-[#111827] border border-rose-600/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-rose-500/20">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0 bg-rose-950/20">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
-              <Lock className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0 shadow-inner">
+              <Trash2 className="w-5 h-5 text-rose-400" />
             </div>
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>批量关闭 / 归档面试房间</span>
-                <span className="bg-rose-950/80 text-rose-300 border border-rose-800/60 text-xs px-2 py-0.5 rounded-full font-mono">
+                <span>批量彻底删除面试房间</span>
+                <span className="bg-rose-950/90 text-rose-300 border border-rose-800/80 text-xs px-2 py-0.5 rounded-full font-mono font-semibold">
                   {rooms.length} 个
                 </span>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-600/30 text-rose-300 border border-rose-500/40">
+                  不可逆
+                </span>
               </h3>
-              <p className="text-xs text-slate-400">阻断外部协同与桌面监控，数据将完整保留</p>
+              <p className="text-xs text-rose-300/80">从本地磁盘永久抹除所选房间数据与所有截图，无法恢复</p>
             </div>
           </div>
           <button
@@ -60,8 +63,8 @@ export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
           {/* Target Rooms Summary & List */}
           <div className="bg-[#151D30] border border-slate-700/60 rounded-xl p-3.5 space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-400 pb-1 border-b border-slate-800">
-              <span className="font-semibold text-slate-300">目标关闭房间列表 ({rooms.length})</span>
-              <span>累计截图: <strong className="text-sky-400 font-mono">{totalScreenshots}</strong> 张</span>
+              <span className="font-semibold text-slate-300">目标删除房间列表 ({rooms.length})</span>
+              <span>累计截图: <strong className="text-rose-400 font-mono">{totalScreenshots}</strong> 张</span>
             </div>
 
             <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
@@ -74,32 +77,39 @@ export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
                     <span className="shrink-0">{getLanguageIcon(room.language)}</span>
                     <span className="font-medium text-slate-200 truncate">{room.name || room.id}</span>
                   </div>
-                  <span className="font-mono text-[11px] text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded shrink-0 border border-slate-800">
-                    {room.id}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {room.screenshotCount > 0 && (
+                      <span className="text-[10px] text-slate-400">
+                        {room.screenshotCount} 张图
+                      </span>
+                    )}
+                    <span className="font-mono text-[11px] text-amber-300 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
+                      {room.id}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Key Notice Callout */}
+          {/* Key Danger Warning */}
           <div className="space-y-2.5">
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-200">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/60 border border-rose-600/50 text-xs text-rose-200">
+              <AlertOctagon className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-emerald-300">数据安全完整保留</span>
-                <p className="text-slate-300 text-[11px] mt-0.5">
-                  所选 <strong>{rooms.length}</strong> 个房间的代码协同文件（<code>doc.bin</code>）、截图图片与元数据均 100% 保存在本地磁盘中，归档后仍可在主控端查看或一键重新开启。
+                <span className="font-bold text-rose-300">本地磁盘数据将被物理清空</span>
+                <p className="text-slate-300 text-[11px] mt-0.5 leading-relaxed">
+                  所选 <strong>{rooms.length}</strong> 个房间的代码协同文件（<code>doc.bin</code> / <code>code.txt</code>）、累计 <strong>{totalScreenshots}</strong> 张截图及元数据均将被<strong>从本地磁盘中永久抹除，无法撤销或恢复</strong>。
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-200">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-950/30 border border-amber-600/30 text-xs text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-rose-300">立即切断外部连接</span>
+                <span className="font-semibold text-amber-300">外部连接立即切断</span>
                 <p className="text-slate-300 text-[11px] mt-0.5">
-                  所有正在连接的候选人网页端及桌面监控端将被立即切断，外部后续访问该链接将显示「房间已关闭」。
+                  所有正在连接的候选人网页端及桌面监控 Agent 将被立即切断断开。
                 </p>
               </div>
             </div>
@@ -120,14 +130,14 @@ export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
             type="button"
             onClick={() => onConfirm(rooms.map((r) => r.id))}
             disabled={isProcessing}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-lg shadow-rose-600/20 transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-lg shadow-rose-600/25 transition-all active:scale-95 disabled:opacity-50"
           >
             {isProcessing ? (
-              <span>正在批量处理中...</span>
+              <span>正在批量彻底删除中...</span>
             ) : (
               <>
-                <Lock className="w-3.5 h-3.5" />
-                <span>确认批量关闭 ({rooms.length})</span>
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>确认批量彻底删除 ({rooms.length})</span>
               </>
             )}
           </button>
@@ -136,4 +146,6 @@ export const BulkCloseModal: React.FC<BulkCloseModalProps> = ({
     </div>
   );
 };
-export default BulkCloseModal;
+
+export const BulkCloseModal = BulkDeleteModal;
+export default BulkDeleteModal;

@@ -1,6 +1,6 @@
 {
   "name": "coder-pad-alt",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "workspaces": [
     "server",
@@ -31,6 +31,7 @@
     "test:sync": "npm run test:sync --workspace=server"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "puppeteer-core": "^25.12.0"
   }
 }

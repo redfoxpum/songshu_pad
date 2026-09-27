@@ -9,6 +9,8 @@ import {
   debounceSaveRoomState,
   sanitizeRoomId,
   isRoomClosed,
+  isRoomMarkedDeleted,
+  markRoomDeleted,
 } from './persistence.js';
 import { DEFAULT_TEMPLATES } from './templates.js';
 import { SupportedLanguage } from './types.js';
@@ -67,6 +69,9 @@ export function initWebSocketServer(wss: WebSocketServer): void {
     },
     writeState: async (docName: string, ydoc: Y.Doc) => {
       const sanitized = sanitizeRoomId(docName);
+      if (isRoomMarkedDeleted(sanitized) || (ydoc as any)._isDeleted) {
+        return;
+      }
       saveRoomState(sanitized, ydoc);
     },
   });
@@ -123,12 +128,16 @@ export function initWebSocketServer(wss: WebSocketServer): void {
 
 export function disconnectRoom(roomId: string): void {
   const sanitized = sanitizeRoomId(roomId);
+  markRoomDeleted(sanitized);
   const yDoc = utils.docs.get(sanitized);
-  if (yDoc && yDoc.conns) {
-    for (const [conn] of yDoc.conns) {
-      try {
-        conn.close(4404, 'Room closed by host');
-      } catch {}
+  if (yDoc) {
+    (yDoc as any)._isDeleted = true;
+    if (yDoc.conns) {
+      for (const [conn] of yDoc.conns) {
+        try {
+          conn.close(4404, 'Room closed by host');
+        } catch {}
+      }
     }
   }
   utils.docs.delete(sanitized);

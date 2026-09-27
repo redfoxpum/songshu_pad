@@ -8,6 +8,7 @@ import {
   Share2,
   Hash,
   Lock,
+  Trash2,
   RotateCcw,
   Link,
   KeyRound,
@@ -214,40 +215,29 @@ export const RoomHeader: React.FC<RoomHeaderProps> = ({
 
       {/* Right Actions */}
       <div className="flex items-center gap-2.5">
-        {!isClosed ? (
-          <>
-            {/* Public / Local link preview with copy */}
-            <div className="flex items-center bg-[#151D30] border border-slate-700/60 rounded-xl px-2.5 py-1.5 gap-2 max-w-xs">
-              <Share2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="text-xs font-mono text-slate-300 truncate select-all">{fullRoomUrl}</span>
-              <button
-                onClick={handleCopyLink}
-                className="p-1 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-md transition-colors shrink-0"
-                title="复制面试链接"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                onClick={handleOpenBrowser}
-                className="p-1 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-md transition-colors shrink-0"
-                title="在浏览器中打开"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Close / Delete Room Button */}
+        {!isClosed && (
+          <div className="flex items-center bg-[#151D30] border border-slate-700/60 rounded-xl px-2.5 py-1.5 gap-2 max-w-xs">
+            <Share2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="text-xs font-mono text-slate-300 truncate select-all">{fullRoomUrl}</span>
             <button
-              onClick={onOpenDeleteModal}
-              className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-100 text-xs font-semibold rounded-xl border border-rose-800/50 transition-all shadow-sm active:scale-95"
-              title="关闭此房间并阻断外部访问（历史数据安全保留）"
+              onClick={handleCopyLink}
+              className="p-1 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-md transition-colors shrink-0"
+              title="复制面试链接"
             >
-              <Lock className="w-3.5 h-3.5" />
-              <span>关闭房间</span>
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
-          </>
-        ) : (
-          /* Reopen Room Button */
+            <button
+              onClick={handleOpenBrowser}
+              className="p-1 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-md transition-colors shrink-0"
+              title="在浏览器中打开"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {isClosed && (
+          /* Reopen Room Button (Legacy) */
           <button
             onClick={onReopenRoom}
             disabled={isReopening}
@@ -258,6 +248,16 @@ export const RoomHeader: React.FC<RoomHeaderProps> = ({
             <span>重新开启房间</span>
           </button>
         )}
+
+        {/* Delete Room Button */}
+        <button
+          onClick={onOpenDeleteModal}
+          className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 hover:text-white text-xs font-semibold rounded-xl border border-rose-800/60 transition-all shadow-sm active:scale-95"
+          title="彻底删除此房间及所有本地数据（不可恢复）"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+          <span>删除房间</span>
+        </button>
 
         {/* Finder Button */}
         <button

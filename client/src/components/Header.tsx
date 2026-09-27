@@ -7,8 +7,10 @@ import {
   Moon,
   Share2,
   WifiOff,
+  Code2,
+  PenTool,
 } from 'lucide-react';
-import { SupportedLanguage, EditorTheme, UserProfile, RemoteParticipant, ConnectionStatus } from '../types';
+import { SupportedLanguage, EditorTheme, UserProfile, RemoteParticipant, ConnectionStatus, ActiveView } from '../types';
 import { LANGUAGES } from '../utils/languages';
 import { LanguageSelector } from './LanguageSelector';
 import { ParticipantsList } from './ParticipantsList';
@@ -23,6 +25,8 @@ interface HeaderProps {
   currentUser: UserProfile;
   participants: RemoteParticipant[];
   connectionStatus: ConnectionStatus;
+  activeView: ActiveView;
+  onActiveViewChange: (view: ActiveView) => void;
   onOpenProfile: () => void;
   onCopyAllCode: () => void;
   onExportCode: () => void;
@@ -40,6 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   participants,
   connectionStatus,
+  activeView,
+  onActiveViewChange,
   onOpenProfile,
   onCopyAllCode,
   onExportCode,
@@ -113,13 +119,56 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Middle Section: Live Language Switcher & Connection Indicator */}
+      {/* Middle Section: View Switcher (Code / Whiteboard) & Live Language Switcher & Status */}
       <div className="flex items-center gap-2.5">
-        <LanguageSelector
-          language={language}
-          onChange={onLanguageChange}
-          isDark={isDark}
-        />
+        {/* Segmented Pill View Switcher */}
+        <div
+          className={`flex items-center p-0.5 rounded-lg border text-xs font-medium transition-colors ${
+            isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-100/90 border-slate-200'
+          }`}
+        >
+          <button
+            onClick={() => onActiveViewChange('code')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+              activeView === 'code'
+                ? isDark
+                  ? 'bg-slate-800 text-amber-400 font-semibold shadow-xs'
+                  : 'bg-white text-amber-600 font-semibold shadow-xs'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="代码编辑器 (快捷键: Cmd/Ctrl + B)"
+          >
+            <Code2 className="w-3.5 h-3.5" />
+            <span>代码</span>
+          </button>
+          <button
+            onClick={() => onActiveViewChange('whiteboard')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+              activeView === 'whiteboard'
+                ? isDark
+                  ? 'bg-slate-800 text-amber-400 font-semibold shadow-xs'
+                  : 'bg-white text-amber-600 font-semibold shadow-xs'
+                : isDark
+                ? 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="协同白板画图 (快捷键: Cmd/Ctrl + B)"
+          >
+            <PenTool className="w-3.5 h-3.5" />
+            <span>白板</span>
+          </button>
+        </div>
+
+        {/* Live Language Switcher (shown in code view) */}
+        {activeView === 'code' && (
+          <LanguageSelector
+            language={language}
+            onChange={onLanguageChange}
+            isDark={isDark}
+          />
+        )}
 
         {/* Connection Status Indicator */}
         <div
@@ -168,35 +217,39 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="h-4 w-px bg-slate-700/60 hidden md:block" />
 
-        {/* Copy All Code Button */}
-        <button
-          onClick={handleCopyCode}
-          className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-            copiedCode
-              ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
-              : isDark
-              ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm'
-          }`}
-          title="Copy entire editor code to clipboard"
-        >
-          {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-          <span className="hidden lg:inline">{copiedCode ? 'Copied' : 'Copy Code'}</span>
-        </button>
+        {/* Copy All Code Button (shown in code view) */}
+        {activeView === 'code' && (
+          <button
+            onClick={handleCopyCode}
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              copiedCode
+                ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400'
+                : isDark
+                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm'
+            }`}
+            title="Copy entire editor code to clipboard"
+          >
+            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+            <span className="hidden lg:inline">{copiedCode ? 'Copied' : 'Copy Code'}</span>
+          </button>
+        )}
 
-        {/* Export / Download Button */}
-        <button
-          onClick={onExportCode}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-            isDark
-              ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm'
-          }`}
-          title={`Download code as ${currentLang.name} (${currentLang.extension})`}
-        >
-          <Download className="w-3.5 h-3.5 text-slate-400" />
-          <span className="hidden xl:inline">Export {currentLang.extension}</span>
-        </button>
+        {/* Export / Download Button (shown in code view) */}
+        {activeView === 'code' && (
+          <button
+            onClick={onExportCode}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+              isDark
+                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm'
+            }`}
+            title={`Download code as ${currentLang.name} (${currentLang.extension})`}
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden xl:inline">Export {currentLang.extension}</span>
+          </button>
+        )}
 
         {/* Theme Toggle */}
         <button
