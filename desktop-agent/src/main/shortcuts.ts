@@ -45,7 +45,7 @@ export function toggleWindowVisibility(window?: BrowserWindow | null): boolean {
 
   if (win.isVisible()) {
     win.hide();
-    console.log('[Shortcut] Cmd+Shift+B: Window completely hidden.');
+    console.log('[Shortcut] Cmd+H: Window completely hidden.');
     if (onVisibilityCallback) {
       onVisibilityCallback(false);
     }
@@ -64,10 +64,11 @@ export function toggleWindowVisibility(window?: BrowserWindow | null): boolean {
       if (isClickThroughEnabled) {
         win.setIgnoreMouseEvents(true, { forward: true });
       }
+      win.setSkipTaskbar(true);
     } catch (err) {
       console.error('[Shortcut] Error restoring window state on show:', err);
     }
-    console.log('[Shortcut] Cmd+Shift+B: Window displayed again.');
+    console.log('[Shortcut] Window displayed again.');
     if (onVisibilityCallback) {
       onVisibilityCallback(true);
     }
@@ -155,6 +156,14 @@ export function registerGlobalShortcuts(
     'CommandOrControl+Shift+-',
     'CommandOrControl+Shift+Down',
     'CommandOrControl+Shift+Up',
+    'CommandOrControl+X',
+    'CommandOrControl+H',
+    'CommandOrControl+[',
+    'CommandOrControl+]',
+    'CommandOrControl+=',
+    'CommandOrControl+-',
+    'CommandOrControl+Down',
+    'CommandOrControl+Up',
   ];
 
   for (const acc of toUnregister) {
@@ -163,73 +172,97 @@ export function registerGlobalShortcuts(
     } catch (e) {}
   }
 
-  // 1. Click-through toggling (Cmd+Shift+X)
-  const registeredX = globalShortcut.register('CommandOrControl+Shift+X', () => {
-    console.log('[Shortcut] Cmd+Shift+X triggered. Toggling click-through...');
+  // 1. Click-through toggling (Cmd+X / Ctrl+X, Cmd+Shift+X / Ctrl+Shift+X)
+  const registeredX = globalShortcut.register('CommandOrControl+X', () => {
+    console.log('[Shortcut] Cmd+X / Ctrl+X triggered. Toggling click-through...');
+    toggleClickThrough();
+  });
+  globalShortcut.register('CommandOrControl+Shift+X', () => {
+    console.log('[Shortcut] Cmd+Shift+X / Ctrl+Shift+X triggered. Toggling click-through...');
     toggleClickThrough();
   });
 
-  // 2. Window visibility toggle (Cmd+Shift+B: completely hide from screen, press again to show)
-  const registeredB = globalShortcut.register('CommandOrControl+Shift+B', () => {
-    console.log('[Shortcut] Cmd+Shift+B triggered. Toggling window visibility...');
+  // 2. Window visibility toggle (Cmd+H / Ctrl+H, Cmd+Shift+B / Ctrl+Shift+B, Cmd+B / Ctrl+B)
+  const registeredH = globalShortcut.register('CommandOrControl+H', () => {
+    console.log('[Shortcut] Cmd+H / Ctrl+H triggered. Toggling window visibility...');
+    toggleWindowVisibility();
+  });
+  globalShortcut.register('CommandOrControl+Shift+B', () => {
+    console.log('[Shortcut] Cmd+Shift+B / Ctrl+Shift+B triggered. Toggling window visibility...');
+    toggleWindowVisibility();
+  });
+  globalShortcut.register('CommandOrControl+B', () => {
+    console.log('[Shortcut] Cmd+B / Ctrl+B triggered. Toggling window visibility...');
     toggleWindowVisibility();
   });
 
-  // 3. Opacity adjustments (Cmd+Shift+[ decrease opacity, Cmd+Shift+] increase opacity)
-  const registeredBracketLeft = globalShortcut.register('CommandOrControl+Shift+[', () => {
-    console.log('[Shortcut] Cmd+Shift+[ triggered. Decreasing opacity...');
+  // 3. Opacity adjustments (Cmd+[ / Ctrl+[, Cmd+] / Ctrl+], with or without Shift)
+  const registeredBracketLeft = globalShortcut.register('CommandOrControl+[', () => {
+    adjustOpacity(-0.05);
+  });
+  globalShortcut.register('CommandOrControl+Shift+[', () => {
     adjustOpacity(-0.05);
   });
 
-  const registeredBracketRight = globalShortcut.register('CommandOrControl+Shift+]', () => {
-    console.log('[Shortcut] Cmd+Shift+] triggered. Increasing opacity...');
+  const registeredBracketRight = globalShortcut.register('CommandOrControl+]', () => {
+    adjustOpacity(0.05);
+  });
+  globalShortcut.register('CommandOrControl+Shift+]', () => {
     adjustOpacity(0.05);
   });
 
-  // 4. Window Height adjustments (Cmd+Shift++ increase height, Cmd+Shift+- decrease height)
+  // 4. Window Height adjustments (Cmd+= / Cmd++ / Ctrl+=, Cmd+- / Ctrl+-)
   let registeredPlus = false;
   try {
-    registeredPlus = globalShortcut.register('CommandOrControl+Shift+=', () => {
-      console.log('[Shortcut] Cmd+Shift++ triggered. Increasing window height...');
+    registeredPlus = globalShortcut.register('CommandOrControl+=', () => {
+      adjustWindowHeight(60);
+    });
+    globalShortcut.register('CommandOrControl+Shift+=', () => {
       adjustWindowHeight(60);
     });
   } catch (e) {}
 
   let registeredMinus = false;
   try {
-    registeredMinus = globalShortcut.register('CommandOrControl+Shift+-', () => {
-      console.log('[Shortcut] Cmd+Shift+- triggered. Decreasing window height...');
+    registeredMinus = globalShortcut.register('CommandOrControl+-', () => {
+      adjustWindowHeight(-60);
+    });
+    globalShortcut.register('CommandOrControl+Shift+-', () => {
       adjustWindowHeight(-60);
     });
   } catch (e) {}
 
-  // 5. Half-page scrolling (Cmd+Shift+Down scroll down half page, Cmd+Shift+Up scroll up half page)
+  // 5. Half-page scrolling (Cmd+Down / Ctrl+Down, Cmd+Up / Ctrl+Up)
   let registeredDown = false;
   try {
-    registeredDown = globalShortcut.register('CommandOrControl+Shift+Down', () => {
-      console.log('[Shortcut] Cmd+Shift+Down triggered. Scrolling down half page...');
+    registeredDown = globalShortcut.register('CommandOrControl+Down', () => {
+      scrollPage('down');
+    });
+    globalShortcut.register('CommandOrControl+Shift+Down', () => {
       scrollPage('down');
     });
   } catch (e) {}
 
   let registeredUp = false;
   try {
-    registeredUp = globalShortcut.register('CommandOrControl+Shift+Up', () => {
-      console.log('[Shortcut] Cmd+Shift+Up triggered. Scrolling up half page...');
+    registeredUp = globalShortcut.register('CommandOrControl+Up', () => {
+      scrollPage('up');
+    });
+    globalShortcut.register('CommandOrControl+Shift+Up', () => {
       scrollPage('up');
     });
   } catch (e) {}
 
   console.log(
     `[Shortcuts] Registered: ` +
-    `Cmd+Shift+X: ${registeredX}, ` +
-    `Cmd+Shift+B: ${registeredB}, ` +
-    `Cmd+Shift+[: ${registeredBracketLeft}, ` +
-    `Cmd+Shift+]: ${registeredBracketRight}, ` +
-    `Cmd+Shift++: ${registeredPlus}, ` +
-    `Cmd+Shift+-: ${registeredMinus}, ` +
-    `Cmd+Shift+Down: ${registeredDown}, ` +
-    `Cmd+Shift+Up: ${registeredUp}`
+    `Cmd/Ctrl+X: ${registeredX}, ` +
+    `Cmd/Ctrl+H: ${registeredH}, ` +
+    `Cmd/Ctrl+[: ${registeredBracketLeft}, ` +
+    `Cmd/Ctrl+]: ${registeredBracketRight}, ` +
+    `Cmd/Ctrl+=: ${registeredPlus}, ` +
+    `Cmd/Ctrl+-: ${registeredMinus}, ` +
+    `Cmd/Ctrl+Down: ${registeredDown}, ` +
+    `Cmd/Ctrl+Up: ${registeredUp}`
   );
 }
 

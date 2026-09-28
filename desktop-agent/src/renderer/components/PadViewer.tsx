@@ -235,7 +235,7 @@ export const PadViewer: React.FC<PadViewerProps> = ({
         syntaxHighlighting(transparentHighContrastStyle, { fallback: true }),
         keymap.of([
           {
-            key: 'Mod-Shift-ArrowDown',
+            key: 'Mod-ArrowDown',
             run: (view) => {
               const scroller = view.scrollDOM;
               const halfPage = Math.round((scroller.clientHeight || 300) * 0.5);
@@ -245,7 +245,7 @@ export const PadViewer: React.FC<PadViewerProps> = ({
             },
           },
           {
-            key: 'Mod-Shift-ArrowUp',
+            key: 'Mod-ArrowUp',
             run: (view) => {
               const scroller = view.scrollDOM;
               const halfPage = Math.round((scroller.clientHeight || 300) * 0.5);
@@ -255,21 +255,21 @@ export const PadViewer: React.FC<PadViewerProps> = ({
             },
           },
           {
-            key: 'Mod-Shift-=',
+            key: 'Mod-=',
             run: () => {
               window.electronAPI?.adjustWindowHeight(60);
               return true;
             },
           },
           {
-            key: 'Mod-Shift-+',
+            key: 'Mod-+',
             run: () => {
               window.electronAPI?.adjustWindowHeight(60);
               return true;
             },
           },
           {
-            key: 'Mod-Shift--',
+            key: 'Mod--',
             run: () => {
               window.electronAPI?.adjustWindowHeight(-60);
               return true;

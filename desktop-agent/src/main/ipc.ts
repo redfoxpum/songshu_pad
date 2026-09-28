@@ -135,22 +135,22 @@ export function setupIpcHandlers(_initialWindow?: BrowserWindow | null) {
     return setClickThroughState(getMainWindow(), enabled);
   });
 
-  // Window visibility toggling (Cmd+Shift+B)
+  // Window visibility toggling (Cmd+H / Ctrl+H)
   ipcMain.handle('toggle-window-visibility', async () => {
     return toggleWindowVisibility(getMainWindow());
   });
 
-  // Opacity adjustment delta (Cmd+Shift+[ / Cmd+Shift+])
+  // Opacity adjustment delta (Cmd+[ / Cmd+])
   ipcMain.handle('adjust-window-opacity', async (_event, delta: number) => {
     adjustOpacity(delta, getMainWindow());
   });
 
-  // Window height adjustment (Cmd+Shift++ / Cmd+Shift+-)
+  // Window height adjustment (Cmd+= / Cmd+-)
   ipcMain.handle('adjust-window-height', async (_event, delta: number) => {
     adjustWindowHeight(delta, getMainWindow());
   });
 
-  // Half-page scroll (Cmd+Shift+Down / Cmd+Shift+Up)
+  // Half-page scroll (Cmd+Down / Cmd+Up)
   ipcMain.handle('scroll-page', async (_event, direction: 'down' | 'up') => {
     scrollPage(direction, getMainWindow());
   });
@@ -195,7 +195,11 @@ export function setupIpcHandlers(_initialWindow?: BrowserWindow | null) {
   ipcMain.handle('minimize-window', async () => {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.minimize();
+      if (process.platform === 'win32') {
+        mainWindow.hide();
+      } else {
+        mainWindow.minimize();
+      }
     }
   });
 

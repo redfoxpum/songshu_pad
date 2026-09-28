@@ -137,17 +137,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   };
 
   const isWindows = window.electronAPI?.isWindows ?? /Win/i.test(navigator.userAgent || '');
-  const shortcutDisplay = isWindows ? 'Ctrl⇧X' : '⌘⇧X';
+  const shortcutDisplay = isWindows ? 'Ctrl+X' : '⌘X';
   const shortcutTooltip = isWindows
-    ? '点击切换鼠标穿透 (全局热键: Ctrl+Shift+X)'
-    : '点击切换鼠标穿透 (全局热键: Cmd+Shift+X)';
-  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+B' : '⌘⇧B';
-  const opacityDecShortcutDisplay = isWindows ? 'Ctrl+Shift+[' : '⌘⇧[';
-  const opacityIncShortcutDisplay = isWindows ? 'Ctrl+Shift+]' : '⌘⇧]';
-  const heightIncShortcutDisplay = isWindows ? 'Ctrl+Shift++' : '⌘⇧+';
-  const heightDecShortcutDisplay = isWindows ? 'Ctrl+Shift+-' : '⌘⇧-';
-  const scrollDownShortcutDisplay = isWindows ? 'Ctrl+Shift+↓' : '⌘⇧↓';
-  const scrollUpShortcutDisplay = isWindows ? 'Ctrl+Shift+↑' : '⌘⇧↑';
+    ? '点击切换鼠标穿透 (全局热键: Ctrl+X)'
+    : '点击切换鼠标穿透 (全局热键: Cmd+X)';
+  const hideShortcutDisplay = isWindows ? 'Ctrl+H' : '⌘H';
+  const opacityDecShortcutDisplay = isWindows ? 'Ctrl+[' : '⌘[';
+  const opacityIncShortcutDisplay = isWindows ? 'Ctrl+]' : '⌘]';
+  const heightIncShortcutDisplay = isWindows ? 'Ctrl++' : '⌘+';
+  const heightDecShortcutDisplay = isWindows ? 'Ctrl+-' : '⌘-';
+  const scrollDownShortcutDisplay = isWindows ? 'Ctrl+↓' : '⌘↓';
+  const scrollUpShortcutDisplay = isWindows ? 'Ctrl+↑' : '⌘↑';
 
   return (
     <div
@@ -481,6 +481,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                   </div>
                   <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-emerald-300 font-semibold border border-white/10">
                     {hideShortcutDisplay}
+                  </kbd>
+                </div>
+
+                <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/5">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-200">代码 / 白板切换</span>
+                    <span className="text-[9px] text-slate-400">一键切换代码编辑器与画图白板</span>
+                  </div>
+                  <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-amber-300 font-semibold border border-white/10">
+                    {isWindows ? 'Ctrl+B' : '⌘B'}
                   </kbd>
                 </div>
 

@@ -28,7 +28,7 @@ export const App: React.FC = () => {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
       }
-      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'b' || e.code === 'KeyB')) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key.toLowerCase() === 'b' || e.code === 'KeyB')) {
         e.preventDefault();
         setActiveView((prev) => (prev === 'code' ? 'whiteboard' : 'code'));
       }
@@ -245,11 +245,19 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      if (isCmdOrCtrl && e.shiftKey) {
-        if (e.code === 'KeyB') {
+      if (isCmdOrCtrl && !e.shiftKey) {
+        const target = e.target as HTMLElement | null;
+        const isInput =
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.isContentEditable ||
+            Boolean(target.closest?.('.cm-editor')));
+
+        if (e.code === 'KeyH') {
           e.preventDefault();
           window.electronAPI?.toggleWindowVisibility();
-        } else if (e.code === 'KeyX') {
+        } else if (e.code === 'KeyX' && !isInput) {
           e.preventDefault();
           window.electronAPI?.toggleClickThrough();
         } else if (e.code === 'Equal' || e.key === '+' || e.key === '=') {
@@ -258,15 +266,15 @@ export const App: React.FC = () => {
         } else if (e.code === 'Minus' || e.key === '-' || e.key === '_') {
           e.preventDefault();
           window.electronAPI?.adjustWindowHeight(-60);
-        } else if (e.code === 'ArrowDown' || e.key === 'ArrowDown') {
+        } else if (!isInput && (e.code === 'ArrowDown' || e.key === 'ArrowDown')) {
           e.preventDefault();
           window.dispatchEvent(new CustomEvent('scroll-editor-page', { detail: { direction: 'down' } }));
           showScrollToast('down');
-        } else if (e.code === 'ArrowUp' || e.key === 'ArrowUp') {
+        } else if (!isInput && (e.code === 'ArrowUp' || e.key === 'ArrowUp')) {
           e.preventDefault();
           window.dispatchEvent(new CustomEvent('scroll-editor-page', { detail: { direction: 'up' } }));
           showScrollToast('up');
-        } else if (e.code === 'BracketLeft' || e.key === '[' || e.key === '{') {
+        } else if (e.code === 'BracketLeft' || e.key === '[') {
           e.preventDefault();
           setOpacity((prev) => {
             const next = Math.max(0.05, Math.min(1.0, Math.round((prev - 0.05) * 100) / 100));
@@ -276,7 +284,7 @@ export const App: React.FC = () => {
             showOpacityToast(next);
             return next;
           });
-        } else if (e.code === 'BracketRight' || e.key === ']' || e.key === '}') {
+        } else if (e.code === 'BracketRight' || e.key === ']') {
           e.preventDefault();
           setOpacity((prev) => {
             const next = Math.max(0.05, Math.min(1.0, Math.round((prev + 0.05) * 100) / 100));

@@ -16,6 +16,9 @@ if (!gotTheLock) {
     } else {
       if (win.isMinimized()) win.restore();
       win.show();
+      try {
+        win.setSkipTaskbar(true);
+      } catch (e) {}
       win.focus();
     }
   });
@@ -30,7 +33,7 @@ app.whenReady().then(() => {
   // Create floating HUD window
   const mainWindow = createFloatingWindow();
 
-  // Register Cmd+Shift+X & Cmd+Shift+P global shortcuts
+  // Register Cmd+X, Cmd+H and other global shortcuts
   registerGlobalShortcuts(mainWindow, (enabled) => {
     notifyClickThroughChanged(getMainWindow(), enabled);
   });
@@ -41,6 +44,9 @@ app.whenReady().then(() => {
       createFloatingWindow();
     } else {
       win.show();
+      try {
+        win.setSkipTaskbar(true);
+      } catch (e) {}
       win.focus();
     }
   });

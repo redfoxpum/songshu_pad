@@ -40,7 +40,7 @@ export function createFloatingWindow(): BrowserWindow {
     minimizable: true,
     maximizable: false,
     fullscreenable: false,
-    skipTaskbar: false,
+    skipTaskbar: true,
     backgroundColor: '#00000000',
     title: '松鼠Pad 桌面端',
     icon: iconPath,
@@ -63,7 +63,15 @@ export function createFloatingWindow(): BrowserWindow {
     console.error('[Window] Failed to enable setContentProtection:', err);
   }
 
-  // 2. Always On Top with highest overlay level
+  // 2. Hide from Taskbar (Windows / macOS 任务栏完全隐形，不出现在任务栏中)
+  try {
+    mainWindow.setSkipTaskbar(true);
+    console.log('[Window] setSkipTaskbar(true) successfully enabled.');
+  } catch (err) {
+    console.error('[Window] Failed to setSkipTaskbar:', err);
+  }
+
+  // 3. Always On Top with highest overlay level
   try {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
     if (process.platform === 'darwin') {

@@ -23,6 +23,8 @@
     "package:agent:mac:universal": "npm run package:mac:universal --workspace=desktop-agent",
     "package:agent:win": "npm run package:win --workspace=desktop-agent",
     "package:agent:win:portable": "npm run package:win:portable --workspace=desktop-agent",
+    "package:agent:win:zip": "npm run package:win:zip --workspace=desktop-agent",
+    "package:agent:win:dir": "npm run package:win:dir --workspace=desktop-agent",
     "package:agent:all": "npm run package:all --workspace=desktop-agent",
     "start": "npm run start --workspace=server",
     "start:server-app": "npm run start --workspace=server-app",

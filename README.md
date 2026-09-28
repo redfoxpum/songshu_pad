@@ -22,13 +22,14 @@
 
 ### 3. 🕵️ 多端桌面伴侣被控端 (`desktop-agent`)
 - **跨平台原生支持**：全面支持 **Windows (x64)**、**macOS Intel (x64)** 与 **macOS Apple Silicon (arm64)**。
+- **任务栏无痕隐形 (Skip Taskbar)**：开启 `skipTaskbar: true`，在 Windows 任务栏中**完全不显示应用图标与运行栏**，杜绝屏幕分享/远程投屏时任务栏露馅。
 - **屏幕分享隐形防抓取**：启用 `setContentProtection(true)`，在 Zoom / Teams / 腾讯会议 / OBS / 系统录屏中**完全隐形（透明背景）**。
 - **高级悬浮置顶**：`alwaysOnTop: 'screen-saver'`，全屏与多桌面漫游置顶。
-- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+Shift+X`，Windows 为 `Ctrl+Shift+X`）随时切换鼠标穿透。
-- **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+Shift+B`（Windows 为 `Ctrl+Shift+B`）一键完全隐藏窗口，再按一次即刻显示。
-- **底板透明度快捷调节**：全局快捷键 `Cmd+Shift+[`（Windows 为 `Ctrl+Shift+[`）降低底板透明度（更加透视），`Cmd+Shift+]`（Windows 为 `Ctrl+Shift+]`）增加底板透明度（加深底色），实时带 HUD 刻度提示。
-- **窗口高度快捷调节**：全局快捷键 `Cmd+Shift++`（Windows 为 `Ctrl+Shift++`）增加窗口高度，`Cmd+Shift+-`（Windows 为 `Ctrl+Shift+-`）减少窗口高度，实时带高度指示。
-- **代码画布翻半页**：全局快捷键 `Cmd+Shift+↓`（Windows 为 `Ctrl+Shift+↓`）向下翻半页，`Cmd+Shift+↑`（Windows 为 `Ctrl+Shift+↑`）向上翻半页，平滑快速浏览长代码。
+- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+X`，Windows 为 `Ctrl+X`）随时切换鼠标穿透。
+- **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+H`（Windows 为 `Ctrl+H`）一键完全隐藏窗口，再按一次即刻显示。
+- **底板透明度快捷调节**：全局快捷键 `Cmd+[`（Windows 为 `Ctrl+[`）降低底板透明度（更加透视），`Cmd+]`（Windows 为 `Ctrl+]`）增加底板透明度（加深底色），实时带 HUD 刻度提示。
+- **窗口高度快捷调节**：全局快捷键 `Cmd++` / `Cmd+=`（Windows 为 `Ctrl++` / `Ctrl+=`）增加窗口高度，`Cmd+-`（Windows 为 `Ctrl+-`）减少窗口高度，实时带高度指示。
+- **代码画布翻半页**：全局快捷键 `Cmd+↓`（Windows 为 `Ctrl+↓`）向下翻半页，`Cmd+↑`（Windows 为 `Ctrl+↑`）向上翻半页，平滑快速浏览长代码。
 - **屏幕录制权限门禁**：macOS 环境智能检测权限并提供 3 步直达授权指引；Windows 环境免授权无缝直通。
 - **双重截图上传引擎**：30 秒定时静默上传 + WebSocket 毫秒级响应房主 On-Demand 截屏指令。
 - **Glassmorphism HUD**：支持 48px 胶囊折叠、4 档透明度调节、截图倒计时与即时响应状态反馈。
@@ -96,8 +97,11 @@ npm run package:agent:mac:intel
 # 2. 构建 Mac Apple Silicon (M1/M2/M3/M4) 版本 (.dmg / .zip)
 npm run package:agent:mac:arm
 
-# 3. 构建 Windows 版本 (.exe 安装包 / 免安装 Portable 便携版 / .zip)
-npm run package:agent:win
+# 3. 构建 Windows 版本
+npm run package:agent:win:zip      # 构建免安装便携 Zip 包 (解压后直接双击运行，推荐)
+npm run package:agent:win:portable # 构建单文件绿色便携版 (.exe)
+npm run package:agent:win:dir      # 快速生成 unpacked 绿色运行目录
+npm run package:agent:win          # 构建完整安装包与全套 Windows 产物
 
 # 4. 一键构建所有平台包 (Mac + Windows)
 npm run package:agent:all
