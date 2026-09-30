@@ -34,7 +34,15 @@ export const App: React.FC = () => {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    const cleanupIpc = window.electronAPI?.onToggleWhiteboard?.(() => {
+      setActiveView((prev) => (prev === 'code' ? 'whiteboard' : 'code'));
+    });
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      cleanupIpc?.();
+    };
   }, []);
 
   const [opacity, setOpacity] = useState<number>(0.35);
@@ -245,7 +253,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
-      if (isCmdOrCtrl && !e.shiftKey) {
+      if (isCmdOrCtrl) {
         const target = e.target as HTMLElement | null;
         const isInput =
           target &&
@@ -257,6 +265,9 @@ export const App: React.FC = () => {
         if (e.code === 'KeyH') {
           e.preventDefault();
           window.electronAPI?.toggleWindowVisibility();
+        } else if (e.code === 'KeyB' && !isInput) {
+          e.preventDefault();
+          setActiveView((prev) => (prev === 'code' ? 'whiteboard' : 'code'));
         } else if (e.code === 'KeyX' && !isInput) {
           e.preventDefault();
           window.electronAPI?.toggleClickThrough();

@@ -20,6 +20,7 @@ import {
   reopenRoomMeta,
   deleteRoomPermanently,
   unmarkRoomDeleted,
+  isRoomMarkedDeleted,
 } from './persistence.js';
 import { getYDoc, getAllLoadedDocs, disconnectRoom } from './websocket.js';
 import { roomCodeManager } from './roomCodeManager.js';
@@ -86,8 +87,15 @@ export class RoomManager {
 
   public getRoomInfo(roomId: string, onlineClients = 0, includeClosed = false): RoomInfoResponse | null {
     const sanitized = sanitizeRoomId(roomId);
+    if (!sanitized || isRoomMarkedDeleted(sanitized)) {
+      return null;
+    }
+
     const loadedDocs = getAllLoadedDocs();
-    if (!loadedDocs.has(sanitized) && !roomExists(sanitized)) {
+    if (!roomExists(sanitized)) {
+      if (loadedDocs.has(sanitized)) {
+        disconnectRoom(sanitized);
+      }
       return null;
     }
 
@@ -140,7 +148,18 @@ export class RoomManager {
 
   public getAllRooms(onlineClientsResolver?: (roomId: string) => number, includeClosed = true): RoomListItem[] {
     const loadedDocs = getAllLoadedDocs();
-    const allIds = new Set<string>([...listAllRoomIds(), ...loadedDocs.keys()]);
+    const diskIds = listAllRoomIds();
+
+    // Evict any in-memory ghost docs that do not exist on disk or are marked deleted
+    for (const loadedRoomId of Array.from(loadedDocs.keys())) {
+      const sanitized = sanitizeRoomId(loadedRoomId);
+      if (!sanitized || isRoomMarkedDeleted(sanitized) || !roomExists(sanitized)) {
+        disconnectRoom(sanitized);
+      }
+    }
+
+    // Only rooms that physically exist on disk and are not marked deleted are valid rooms
+    const allIds = new Set<string>(diskIds.filter((id) => !isRoomMarkedDeleted(id)));
     const results: RoomListItem[] = [];
 
     for (const roomId of allIds) {
@@ -257,14 +276,16 @@ export class RoomManager {
     const sanitized = sanitizeRoomId(roomId);
     if (!sanitized) return false;
 
-    // Disconnect websockets and desktop agent connections
+    // Disconnect websockets, desktop agent connections, and host listeners
     disconnectRoom(sanitized);
 
     // Clear in-memory room code state and long-polling listeners
     roomCodeManager.clearRoom(sanitized);
 
-    // Physically wipe from disk
-    return deleteRoomPermanently(sanitized);
+    // Physically wipe from disk and mark deleted
+    deleteRoomPermanently(sanitized);
+
+    return true;
   }
 
   public bulkDeleteRooms(roomIds: string[]): {

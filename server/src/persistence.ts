@@ -31,6 +31,7 @@ export function getUnassignedScreenshotsDir(): string {
 // Ensure base data directory exists
 export function ensureDataDir(): void {
   try {
+    loadDeletedRoomsFromDisk();
     const dir = getDataDir();
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -68,18 +69,65 @@ export function sanitizeRoomId(roomId: string): string {
 // Set of room IDs that have been permanently deleted to prevent resurrection from WebSocket writeState
 const deletedRooms = new Set<string>();
 
+function getDeletedRoomsFilePath(): string {
+  return path.join(getBaseDataDir(), 'deleted_rooms.json');
+}
+
+function loadDeletedRoomsFromDisk(): void {
+  try {
+    const filePath = getDeletedRoomsFilePath();
+    if (fs.existsSync(filePath)) {
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      if (Array.isArray(data)) {
+        for (const id of data) {
+          if (typeof id === 'string') {
+            const sanitized = sanitizeRoomId(id);
+            if (sanitized) deletedRooms.add(sanitized);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Persistence] Failed to load deleted_rooms.json:', err);
+  }
+}
+
+function saveDeletedRoomsToDisk(): void {
+  try {
+    const dir = getBaseDataDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const filePath = getDeletedRoomsFilePath();
+    const tempPath = `${filePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempPath, JSON.stringify(Array.from(deletedRooms)), 'utf-8');
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    console.error('[Persistence] Failed to save deleted_rooms.json:', err);
+  }
+}
+
 export function isRoomMarkedDeleted(roomId: string): boolean {
+  if (deletedRooms.size === 0) {
+    loadDeletedRoomsFromDisk();
+  }
   return deletedRooms.has(sanitizeRoomId(roomId));
 }
 
 export function markRoomDeleted(roomId: string): void {
   const sanitized = sanitizeRoomId(roomId);
-  if (sanitized) deletedRooms.add(sanitized);
+  if (sanitized) {
+    deletedRooms.add(sanitized);
+    saveDeletedRoomsToDisk();
+  }
 }
 
 export function unmarkRoomDeleted(roomId: string): void {
   const sanitized = sanitizeRoomId(roomId);
-  if (sanitized) deletedRooms.delete(sanitized);
+  if (sanitized) {
+    deletedRooms.delete(sanitized);
+    saveDeletedRoomsToDisk();
+  }
 }
 
 export function getRoomDir(roomId: string): string {
@@ -201,6 +249,7 @@ export function ensureRoomDir(roomId: string): string {
 export function roomExists(roomId: string): boolean {
   const sanitized = sanitizeRoomId(roomId);
   if (!sanitized) return false;
+  if (isRoomMarkedDeleted(sanitized)) return false;
 
   const roomDir = getRoomDir(sanitized);
   const docPath = getRoomDocPath(sanitized);
@@ -229,6 +278,9 @@ export function roomFileExists(roomId: string): boolean {
  */
 export function loadRoomMeta(roomId: string): RoomMetadata | null {
   const sanitized = sanitizeRoomId(roomId);
+  if (isRoomMarkedDeleted(sanitized)) {
+    return null;
+  }
   migrateLegacyRoom(sanitized);
   const metaPath = getRoomMetaPath(sanitized);
 
@@ -346,12 +398,10 @@ export function deleteRoomPermanently(roomId: string): boolean {
 
   const roomDir = getRoomDir(sanitized);
   const legacyPath = getLegacyRoomFilePath(sanitized);
-  let deleted = false;
 
   if (fs.existsSync(roomDir)) {
     try {
       fs.rmSync(roomDir, { recursive: true, force: true });
-      deleted = true;
     } catch (err) {
       console.error(`[Persistence] Failed to remove room directory for ${sanitized}:`, err);
     }
@@ -360,13 +410,12 @@ export function deleteRoomPermanently(roomId: string): boolean {
   if (fs.existsSync(legacyPath)) {
     try {
       fs.rmSync(legacyPath, { force: true });
-      deleted = true;
     } catch (err) {
       console.error(`[Persistence] Failed to remove legacy file for ${sanitized}:`, err);
     }
   }
 
-  return deleted;
+  return true;
 }
 
 /**
@@ -484,13 +533,13 @@ export function listAllRoomIds(): string[] {
 
       if (entry.isDirectory()) {
         const sanitized = sanitizeRoomId(entry.name);
-        if (sanitized) {
+        if (sanitized && !isRoomMarkedDeleted(sanitized)) {
           roomIds.add(sanitized);
         }
       } else if (entry.isFile() && entry.name.endsWith('.bin') && !entry.name.endsWith('.tmp')) {
         const rawId = entry.name.replace(/\.bin$/, '');
         const sanitized = sanitizeRoomId(rawId);
-        if (sanitized) {
+        if (sanitized && !isRoomMarkedDeleted(sanitized)) {
           roomIds.add(sanitized);
           // Trigger lazy migration
           migrateLegacyRoom(sanitized);

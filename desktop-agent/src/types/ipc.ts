@@ -100,4 +100,5 @@ export interface ElectronAPI {
   onAdjustHeight: (callback: (data: { width: number; height: number; delta: number }) => void) => () => void;
   onScrollPage: (callback: (direction: 'down' | 'up') => void) => () => void;
   onVisibilityChanged: (callback: (visible: boolean) => void) => () => void;
+  onToggleWhiteboard?: (callback: () => void) => () => void;
 }

@@ -4,6 +4,18 @@
 
 ---
 
+## 📥 官方桌面安装包下载 (GitHub Release v1.0.0)
+
+| 平台架构 | 推荐安装格式 | 便携格式 / 备用 | 兼容性说明 |
+| :--- | :--- | :--- | :--- |
+| **macOS Apple Silicon** | [🍏 SongshuPad-macOS-arm64.dmg](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-macOS-arm64.dmg) | [SongshuPad-macOS-arm64.zip](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-macOS-arm64.zip) | 适用于 M1 / M2 / M3 / M4 芯片 Mac |
+| **macOS Intel** | [🍏 SongshuPad-macOS-x64.dmg](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-macOS-x64.dmg) | [SongshuPad-macOS-x64.zip](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-macOS-x64.zip) | 适用于 Intel 处理器 Mac |
+| **Windows 64位** | [🪟 SongshuPad-Windows-Portable.exe](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-Windows-Portable.exe) | [SongshuPad-Windows-x64.zip](https://github.com/redfoxpum/songshu_pad/releases/download/v1.0.0/SongshuPad-Windows-x64.zip) | 单文件绿色便携免安装，双击直接运行 |
+
+> 📌 **快捷键防冲突说明**：为彻底避免 macOS 系统级冲突（如系统原生占用 `Cmd+H` 隐藏应用、`Cmd+X` 剪切文本），桌面端现已全面升级支持 **`Cmd + Shift + ...`**（Windows 为 `Ctrl + Shift + ...`）双修饰键组合，同时也保留原单键快捷键，双通道均可触发。
+
+---
+
 ## 🌟 核心功能一览
 
 ### 1. 协作平台核心 (Web & Server)
@@ -25,11 +37,12 @@
 - **任务栏无痕隐形 (Skip Taskbar)**：开启 `skipTaskbar: true`，在 Windows 任务栏中**完全不显示应用图标与运行栏**，杜绝屏幕分享/远程投屏时任务栏露馅。
 - **屏幕分享隐形防抓取**：启用 `setContentProtection(true)`，在 Zoom / Teams / 腾讯会议 / OBS / 系统录屏中**完全隐形（透明背景）**。
 - **高级悬浮置顶**：`alwaysOnTop: 'screen-saver'`，全屏与多桌面漫游置顶。
-- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+X`，Windows 为 `Ctrl+X`）随时切换鼠标穿透。
-- **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+H`（Windows 为 `Ctrl+H`）一键完全隐藏窗口，再按一次即刻显示。
-- **底板透明度快捷调节**：全局快捷键 `Cmd+[`（Windows 为 `Ctrl+[`）降低底板透明度（更加透视），`Cmd+]`（Windows 为 `Ctrl+]`）增加底板透明度（加深底色），实时带 HUD 刻度提示。
-- **窗口高度快捷调节**：全局快捷键 `Cmd++` / `Cmd+=`（Windows 为 `Ctrl++` / `Ctrl+=`）增加窗口高度，`Cmd+-`（Windows 为 `Ctrl+-`）减少窗口高度，实时带高度指示。
-- **代码画布翻半页**：全局快捷键 `Cmd+↓`（Windows 为 `Ctrl+↓`）向下翻半页，`Cmd+↑`（Windows 为 `Ctrl+↑`）向上翻半页，平滑快速浏览长代码。
+- **点击穿透 (Click-Through)**：支持全局快捷键（macOS 为 `Cmd+Shift+X` 或 `Cmd+X`，Windows 为 `Ctrl+Shift+X` 或 `Ctrl+X`）随时切换鼠标穿透。
+- **全屏完全隐藏/显示 (Boss Key)**：全局快捷键 `Cmd+Shift+H` 或 `Cmd+H`（Windows 为 `Ctrl+Shift+H` 或 `Ctrl+H`）一键完全隐藏窗口，再按一次即刻显示。
+- **代码 / 白板模式切换**：全局快捷键 `Cmd+Shift+B` 或 `Cmd+B`（Windows 为 `Ctrl+Shift+B` 或 `Ctrl+B`）一键在协同代码与协同画图白板间切换。
+- **底板透明度快捷调节**：全局快捷键 `Cmd+Shift+[` / `Cmd+[` 降低底板透明度，`Cmd+Shift+]` / `Cmd+]` 增加底板透明度。
+- **窗口高度快捷调节**：全局快捷键 `Cmd+Shift+=` / `Cmd+=` 增加窗口高度，`Cmd+Shift+-` / `Cmd+-` 减少窗口高度。
+- **代码画布翻半页**：全局快捷键 `Cmd+Shift+↓` / `Cmd+↓` 向下翻半页，`Cmd+Shift+↑` / `Cmd+↑` 向上翻半页。
 - **屏幕录制权限门禁**：macOS 环境智能检测权限并提供 3 步直达授权指引；Windows 环境免授权无缝直通。
 - **双重截图上传引擎**：30 秒定时静默上传 + WebSocket 毫秒级响应房主 On-Demand 截屏指令。
 - **Glassmorphism HUD**：支持 48px 胶囊折叠、4 档透明度调节、截图倒计时与即时响应状态反馈。

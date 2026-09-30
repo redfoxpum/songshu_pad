@@ -106,6 +106,17 @@ export const RoomPage: React.FC<RoomPageProps> = ({
     roomMeta: Y.Map<any>;
   } | null>(null);
 
+  // Immediately disconnect WebSocket if room is closed or not found
+  useEffect(() => {
+    if (isRoomClosed || roomNotFound) {
+      if (yjsState?.provider) {
+        try {
+          yjsState.provider.disconnect();
+        } catch {}
+      }
+    }
+  }, [isRoomClosed, roomNotFound, yjsState]);
+
   useEffect(() => {
     const ydoc = new Y.Doc();
 

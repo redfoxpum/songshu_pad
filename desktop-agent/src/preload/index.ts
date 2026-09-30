@@ -147,6 +147,14 @@ const api: ElectronAPI = {
       ipcRenderer.removeListener('window:visibility-changed', handler);
     };
   },
+
+  onToggleWhiteboard: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('window:toggle-whiteboard', handler);
+    return () => {
+      ipcRenderer.removeListener('window:toggle-whiteboard', handler);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

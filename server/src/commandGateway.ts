@@ -9,7 +9,7 @@ import {
   SubscribeRoomMessage,
   ScreenshotMetadata,
 } from './types.js';
-import { sanitizeRoomId, isRoomClosed, roomExists } from './persistence.js';
+import { sanitizeRoomId, isRoomClosed, roomExists, isRoomMarkedDeleted } from './persistence.js';
 import { getAllLoadedDocs } from './websocket.js';
 
 interface AgentConnection {
@@ -94,6 +94,13 @@ export class CommandGateway {
     let currentAgentConn: AgentConnection | null = null;
 
     if (role === 'host' && roomId) {
+      if (isRoomMarkedDeleted(roomId) || isRoomClosed(roomId)) {
+        console.warn(`[CommandGateway] Rejecting host connection to deleted/closed room: ${roomId}`);
+        try {
+          ws.close(4404, 'Room has been deleted or closed by host');
+        } catch {}
+        return;
+      }
       currentHostConn = {
         ws,
         roomId,
@@ -128,9 +135,11 @@ export class CommandGateway {
               return;
             }
 
-            const roomDoesExist = roomExists(targetRoom) || getAllLoadedDocs().has(targetRoom);
-            if (!roomDoesExist || isRoomClosed(targetRoom)) {
-              const rejectReason = isRoomClosed(targetRoom) ? 'Room is closed or deleted by host' : 'Room does not exist';
+            const roomDoesExist = !isRoomMarkedDeleted(targetRoom) && (roomExists(targetRoom) || getAllLoadedDocs().has(targetRoom));
+            if (!roomDoesExist || isRoomClosed(targetRoom) || isRoomMarkedDeleted(targetRoom)) {
+              const rejectReason = (isRoomClosed(targetRoom) || isRoomMarkedDeleted(targetRoom))
+                ? 'Room is closed or deleted by host'
+                : 'Room does not exist';
               this.safeSend(ws, {
                 type: 'REGISTER_ACK',
                 success: false,
@@ -231,6 +240,14 @@ export class CommandGateway {
             const subMsg = msg as SubscribeRoomMessage;
             const targetRoom = sanitizeRoomId(subMsg.roomId || roomId);
             if (targetRoom) {
+              if (isRoomMarkedDeleted(targetRoom) || isRoomClosed(targetRoom)) {
+                this.safeSend(ws, {
+                  type: 'ERROR',
+                  roomId: targetRoom,
+                  message: 'Room is closed or deleted by host',
+                });
+                return;
+              }
               roomId = targetRoom;
               if (currentHostConn) {
                 this.removeHostListener(currentHostConn.roomId, currentHostConn);
@@ -541,6 +558,28 @@ export class CommandGateway {
       this.activeAgents.delete(sanitized);
       this.broadcastAgentStatus(sanitized);
     }
+  }
+
+  public disconnectRoom(roomId: string): void {
+    const sanitized = sanitizeRoomId(roomId);
+    this.disconnectRoomAgents(sanitized);
+
+    const hosts = this.hostListeners.get(sanitized);
+    if (hosts) {
+      for (const host of hosts) {
+        try {
+          this.safeSend(host.ws, {
+            type: 'ROOM_DELETED',
+            roomId: sanitized,
+            message: 'Room has been permanently deleted by host',
+          });
+          host.ws.close(4404, 'Room deleted by host');
+        } catch {}
+      }
+      this.hostListeners.delete(sanitized);
+    }
+
+    this.pendingCaptureResolvers.delete(sanitized);
   }
 
   public cleanup(): void {

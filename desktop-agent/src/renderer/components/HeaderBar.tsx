@@ -137,17 +137,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   };
 
   const isWindows = window.electronAPI?.isWindows ?? /Win/i.test(navigator.userAgent || '');
-  const shortcutDisplay = isWindows ? 'Ctrl+X' : '⌘X';
+  const shortcutDisplay = isWindows ? 'Ctrl+Shift+X / Ctrl+X' : '⌘⇧X / ⌘X';
   const shortcutTooltip = isWindows
-    ? '点击切换鼠标穿透 (全局热键: Ctrl+X)'
-    : '点击切换鼠标穿透 (全局热键: Cmd+X)';
-  const hideShortcutDisplay = isWindows ? 'Ctrl+H' : '⌘H';
-  const opacityDecShortcutDisplay = isWindows ? 'Ctrl+[' : '⌘[';
-  const opacityIncShortcutDisplay = isWindows ? 'Ctrl+]' : '⌘]';
-  const heightIncShortcutDisplay = isWindows ? 'Ctrl++' : '⌘+';
-  const heightDecShortcutDisplay = isWindows ? 'Ctrl+-' : '⌘-';
-  const scrollDownShortcutDisplay = isWindows ? 'Ctrl+↓' : '⌘↓';
-  const scrollUpShortcutDisplay = isWindows ? 'Ctrl+↑' : '⌘↑';
+    ? '点击切换鼠标穿透 (全局热键: Ctrl+Shift+X 或 Ctrl+X)'
+    : '点击切换鼠标穿透 (全局热键: Cmd+Shift+X 或 Cmd+X)';
+  const hideShortcutDisplay = isWindows ? 'Ctrl+Shift+H / Ctrl+H' : '⌘⇧H / ⌘H';
+  const whiteboardShortcutDisplay = isWindows ? 'Ctrl+Shift+B / Ctrl+B' : '⌘⇧B / ⌘B';
+  const opacityDecShortcutDisplay = isWindows ? 'Ctrl+Shift+[ / Ctrl+[' : '⌘⇧[ / ⌘[';
+  const opacityIncShortcutDisplay = isWindows ? 'Ctrl+Shift+] / Ctrl+]' : '⌘⇧] / ⌘]';
+  const heightIncShortcutDisplay = isWindows ? 'Ctrl+Shift+= / Ctrl+=' : '⌘⇧+ / ⌘+';
+  const heightDecShortcutDisplay = isWindows ? 'Ctrl+Shift+- / Ctrl+-' : '⌘⇧- / ⌘-';
+  const scrollDownShortcutDisplay = isWindows ? 'Ctrl+Shift+↓ / Ctrl+↓' : '⌘⇧↓ / ⌘↓';
+  const scrollUpShortcutDisplay = isWindows ? 'Ctrl+Shift+↑ / Ctrl+↑' : '⌘⇧↑ / ⌘↑';
 
   return (
     <div
@@ -240,7 +241,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     ? 'bg-white/20 text-amber-300 font-semibold shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="代码协同视图 (快捷键: Cmd/Ctrl + B)"
+                title={`代码协同视图 (快捷键: ${whiteboardShortcutDisplay})`}
               >
                 <Code2 className="w-3 h-3" />
                 <span>代码</span>
@@ -252,7 +253,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     ? 'bg-white/20 text-amber-300 font-semibold shadow-xs'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title="白板画图视图 (快捷键: Cmd/Ctrl + B)"
+                title={`白板画图视图 (快捷键: ${whiteboardShortcutDisplay})`}
               >
                 <PenTool className="w-3 h-3" />
                 <span>白板</span>
@@ -490,7 +491,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                     <span className="text-[9px] text-slate-400">一键切换代码编辑器与画图白板</span>
                   </div>
                   <kbd className="px-2 py-1 rounded bg-white/10 font-mono text-[10px] text-amber-300 font-semibold border border-white/10">
-                    {isWindows ? 'Ctrl+B' : '⌘B'}
+                    {whiteboardShortcutDisplay}
                   </kbd>
                 </div>
 
@@ -557,7 +558,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
               <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 text-[10px] text-slate-400 font-sans">
                 <Sparkles className="w-3 h-3 text-cyan-400 flex-shrink-0" />
-                <span>全局热键在后台或全屏应用中随时可用</span>
+                <span>全局热键支持双修饰键 (带 Shift 推荐，避免系统拦截) 或单键触发</span>
               </div>
             </div>
           )}

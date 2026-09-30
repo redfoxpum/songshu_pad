@@ -109,11 +109,11 @@ export function initWebSocketServer(wss: WebSocketServer): void {
       // Sanitize docName
       docName = sanitizeRoomId(docName);
 
-      // Check if room is closed by host
-      if (isRoomClosed(docName)) {
-        console.warn(`[WebSocket] Rejecting connection to closed room: ${docName}`);
+      // Check if room is deleted or closed by host
+      if (isRoomMarkedDeleted(docName) || isRoomClosed(docName)) {
+        console.warn(`[WebSocket] Rejecting connection to deleted/closed room: ${docName}`);
         try {
-          conn.close(4404, 'Room has been closed by host');
+          conn.close(4404, 'Room has been deleted or closed by host');
         } catch {}
         return;
       }
@@ -139,9 +139,12 @@ export function disconnectRoom(roomId: string): void {
         } catch {}
       }
     }
+    try {
+      yDoc.destroy();
+    } catch {}
   }
   utils.docs.delete(sanitized);
-  commandGateway.disconnectRoomAgents(sanitized);
+  commandGateway.disconnectRoom(sanitized);
 }
 
 export function getYDoc(roomId: string): Y.Doc {
